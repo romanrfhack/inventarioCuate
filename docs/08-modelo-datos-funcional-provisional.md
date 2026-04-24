@@ -2,7 +2,7 @@
 
 ## Propósito
 
-Este documento propone entidades funcionales para el MVP a partir del Excel auditado y de las reglas provisionales. No define todavía la base de datos física final.
+Este documento propone entidades funcionales para el MVP a partir del Excel auditado, de las reglas provisionales y del nuevo baseline de inventario inicial en cero o por carga explícita. No define todavía la base de datos física final.
 
 ## Relación con documentos previos
 
@@ -167,6 +167,8 @@ Guardar el saldo vigente por producto para la operación diaria.
 
 ### Confirmado
 - el sistema necesita una entidad separada para saldo vigente
+- el saldo inicial ya no depende del Excel histórico
+- el saldo puede arrancar en cero o por una carga formal de inventario inicial
 
 ### Inferencia
 - `almacen_id` puede omitirse en MVP si solo hay una ubicación
@@ -204,6 +206,7 @@ Registrar toda alteración del saldo de inventario.
 
 ### Confirmado
 - movimientos deben separarse del saldo actual
+- la carga inicial y el reset demo deben poder generar trazas operativas o al menos eventos auditables
 
 ### Inferencia
 - el historial derivado del Excel no equivale a una bitácora transaccional definitiva
@@ -442,6 +445,37 @@ Representar una sesión operativa o corte de caja/inventario por usuario.
 ### Depende de validación cliente
 - si turno entra en MVP o en una fase inmediata posterior
 
+## 14. CargaInventarioInicial
+
+### Propósito
+Representar el evento formal de carga inicial de existencias reales o demo.
+
+### Campos sugeridos
+- carga_inventario_inicial_id
+- tipo_carga
+- nombre_archivo nullable
+- fecha_hora_carga
+- usuario_id
+- estatus_carga
+- observaciones
+
+### Claves candidatas
+- primaria: `carga_inventario_inicial_id`
+
+### Relaciones principales
+- N:1 con `Usuario`
+- 1:N lógica con `InventarioActual`
+- 1:N lógica con `MovimientoInventario`
+
+### Confirmado
+- el nuevo baseline necesita una carga formal separada del Excel histórico
+
+### Inferencia
+- podría modelarse como un tipo de importación genérica, pero conviene separarla por claridad funcional en el MVP
+
+### Depende de validación cliente
+- si la carga inicial podrá ejecutarse una sola vez o varias veces con confirmación explícita
+
 ## Resumen de madurez
 
 ### Confirmado
@@ -453,6 +487,7 @@ Representar una sesión operativa o corte de caja/inventario por usuario.
 - Usuario
 - Proveedor como entidad separada
 - ImportacionProveedor y su detalle como necesidad funcional
+- CargaInventarioInicial como necesidad funcional del nuevo baseline
 
 ### En inferencia fuerte pero útil
 - ProductoCodigoAlterno
@@ -466,3 +501,4 @@ Representar una sesión operativa o corte de caja/inventario por usuario.
 - alcance exacto de turnos
 - política de excepciones de venta sin precio
 - política de matching y actualización por importación
+- si la carga inicial será única o reutilizable con controles de seguridad

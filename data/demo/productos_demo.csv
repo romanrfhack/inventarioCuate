@@ -1,0 +1,6 @@
+codigo,descripcion,marca,proveedor,costo,precio_venta,existencia_inicial,unidad,ubicacion,observaciones
+BUJ-001,Bujía NGK CR7HSA,NGK,MotoPartes del Centro,38.50,65.00,10,pieza,A1,Demo base
+ACE-20W50-1L,Aceite 20W50 1L,Akron,Lubricantes del Bajío,72.00,110.00,15,pieza,B2,Demo base
+BAL-FT150-D,Balatas delanteras FT150,Genérica,Frenos MX,95.00,160.00,6,juego,C1,Demo base
+FIL-AIR-125,Filtro de aire Italika 125,Italika,Proveedor pendiente,48.00,85.00,4,pieza,D3,Proveedor por confirmar
+LLN-275-17,Llanta 275-17,Chao Yang,Llantas Express,410.00,590.00,2,pieza,E1,Demo base

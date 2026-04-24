@@ -12,13 +12,12 @@ Este documento traduce los hallazgos del Excel y las reglas provisionales en reg
 - existen productos con datos incompletos y anomalías operativas que el sistema debe soportar sin perder trazabilidad
 
 ### Qué se infiere
-- `Hoja 4` parece el mejor corte base actual
-- `F` parece representar existencia consolidada del corte
-- columnas posteriores a `F` parecen movimientos por bloque
-- `C` parece marca en la mayoría de registros
+- columnas posteriores a `F` parecen movimientos por bloque en la referencia histórica
+- `C` parece marca en la mayoría de registros del Excel auditado
 
 ### Qué propongo provisionalmente
 - diseñar operación del MVP soportando revisión de datos y estados incompletos
+- arrancar inventario en cero o mediante carga explícita controlada
 - evitar reglas demasiado rígidas que impidan migrar la operación real
 
 ## 1. Catálogo de productos
@@ -77,15 +76,17 @@ Este documento traduce los hallazgos del Excel y las reglas provisionales en reg
 
 ### Cómo se define existencia actual
 
-#### Provisional
+#### Confirmado por decisión de negocio
 - la existencia actual del MVP será el saldo vigente por producto en `InventarioActual`
-- el saldo inicial se cargará desde la hoja base validada, provisionalmente `Hoja 4`
+- el sistema puede arrancar con existencia cero para todos los productos
+- alternativamente, el saldo inicial se cargará desde una plantilla formal de inventario inicial
 
 ### Cómo se corrige existencia inicial
 
-- la carga inicial no debe reescribir silenciosamente el saldo
+- la carga inicial debe registrarse como evento explícito de arranque
+- si el sistema ya fue inicializado, una nueva carga no debe reescribir silenciosamente el saldo
 - cualquier corrección posterior debe registrarse como ajuste manual con motivo
-- debe poder distinguirse entre saldo migrado y saldo corregido
+- debe poder distinguirse entre saldo cargado, saldo ajustado y saldo derivado de operación
 
 ### Cómo se registran entradas y salidas
 
@@ -109,7 +110,8 @@ Este documento traduce los hallazgos del Excel y las reglas provisionales en reg
 
 ### Qué eventos afectan inventario
 
-- carga inicial
+- carga inicial desde plantilla formal
+- carga o reset demo
 - entrada manual
 - salida manual
 - venta confirmada
@@ -128,6 +130,9 @@ Este documento traduce los hallazgos del Excel y las reglas provisionales en reg
 5. confirmar venta
 6. descontar inventario
 7. generar folio interno
+
+Nota:
+- para demo temprana, este flujo debe poder ejecutarse con productos demo previamente cargados
 
 ### Si la venta descuenta inventario inmediatamente
 
@@ -288,10 +293,28 @@ Orden sugerido:
 - si se busca velocidad, puede arrancarse con usuario obligatorio y turno como fase cercana posterior
 - la decisión cambia reportes y trazabilidad, por lo que conviene marcarla como crítica de diseño
 
+## Función de reset demo
+
+### Alcance propuesto
+- debe existir solo para entorno demo o sandbox
+- debe estar restringida a administrador
+- debe borrar ventas demo, movimientos demo, ajustes demo y saldos demo
+- debe conservar configuración base, usuarios y estructura del sistema
+
+### Riesgos
+- si se habilita fuera de demo, puede destruir operación real
+- si no queda auditada, puede dificultar soporte o pruebas repetibles
+
+### Recomendación de implementación segura
+- protegerla por rol administrador
+- protegerla además por bandera de entorno demo
+- exigir confirmación explícita
+- registrar bitácora del reset con usuario, fecha y alcance
+
 ## Decisiones funcionales críticas que cambian el diseño
 
 1. si `codigo` será realmente único
 2. si `turno` entra desde MVP o en fase inmediata posterior
 3. si productos sin precio pueden venderse por excepción
 4. si una importación puede actualizar costo y precio automáticamente
-5. si la carga inicial tomará `Hoja 4` como snapshot oficial
+5. si la carga inicial real permitirá reemplazo total o solo alta inicial única

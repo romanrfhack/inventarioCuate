@@ -1,0 +1,6 @@
+codigo,tipo_movimiento,cantidad,motivo,referencia
+BUJ-001,entrada,5,Carga demo complementaria,DEMO-ENT-001
+BUJ-001,venta,2,Venta demo,VTA-DEMO-001
+ACE-20W50-1L,venta,1,Venta demo,VTA-DEMO-002
+BAL-FT150-D,ajuste_negativo,1,Producto dañado,AJ-DEMO-001
+LLN-275-17,entrada,3,Reabasto demo,DEMO-ENT-002
