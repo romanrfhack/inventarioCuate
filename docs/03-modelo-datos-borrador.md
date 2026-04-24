@@ -95,21 +95,27 @@ Campos probables:
 Del Excel actual sí se puede sostener la existencia de atributos equivalentes a:
 - descripción
 - código
-- marca
+- marca como atributo probable en la columna `C`
 - costo
 - precio de venta
-- existencia total del corte
+- existencia total del corte en la columna `F`, aunque su semántica final debe validarse
 - bloques de movimiento por columnas posteriores
+- una separación conceptual necesaria entre catálogo, inventario actual y movimientos
 
 ## Qué se infiere
 
 - proveedor no está claramente identificado en la estructura visible del Excel auditado
+- la columna `C` parece marca en la mayoría de los casos observados, pero todavía debe validarse si en algunos registros mezcla marca y proveedor
 - los movimientos detectados son inferidos desde columnas por bloque, no desde una bitácora transaccional formal
 - la fecha exacta por movimiento todavía no es confiable a nivel de evento individual
+- la hoja más reciente parece ser `Hoja 4`, por secuencia de bloques visibles, pero sigue siendo una inferencia operativa
 
 ## Qué falta validar
 
 - unicidad real del código
-n- política de actualización de costo y precio
+- política de actualización de costo y precio
 - definición oficial de existencia inicial contra existencia final
+- semántica exacta de la columna `C`
+- interpretación oficial de columnas posteriores a `F`
 - trazabilidad mínima requerida por venta, ajuste y turno
+- criterio oficial para elegir el inventario inicial del sistema
