@@ -4,6 +4,8 @@
 
 Este borrador no define todavía el modelo final. Sirve para separar entidades que hoy aparecen mezcladas en el Excel.
 
+> Nota: a partir del Paso 2, este documento queda complementado y funcionalmente superado por `docs/08-modelo-datos-funcional-provisional.md`. Este archivo se conserva como base histórica del razonamiento inicial.
+
 ## Entidades candidatas
 
 ### Producto
