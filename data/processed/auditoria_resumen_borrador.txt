@@ -1,0 +1,6 @@
+{'sheet': 'Hoja 1 ', 'rows': 8164, 'with_code': 7820, 'no_code': 344, 'no_cost': 416, 'no_price': 311, 'duplicate_codes': 53, 'negative_stock': 1, 'bad_margin': 16, 'columns_present': 'A,B,C,D,E,F,G,H,L,M,N,P,R,T,U'}
+{'sheet': 'Hoja 2', 'rows': 8180, 'with_code': 7837, 'no_code': 343, 'no_cost': 413, 'no_price': 310, 'duplicate_codes': 53, 'negative_stock': 1, 'bad_margin': 16, 'columns_present': 'A,B,C,D,E,F,G,H,J,L,N,P,Q,R,T,U'}
+{'sheet': 'Hoja 3', 'rows': 8184, 'with_code': 7840, 'no_code': 344, 'no_cost': 413, 'no_price': 310, 'duplicate_codes': 53, 'negative_stock': 1, 'bad_margin': 16, 'columns_present': 'A,B,C,D,E,F,G,H,J,K,L,M,N,P,R,U'}
+{'sheet': 'Hoja 4', 'rows': 8127, 'with_code': 7783, 'no_code': 344, 'no_cost': 418, 'no_price': 313, 'duplicate_codes': 52, 'negative_stock': 2, 'bad_margin': 15, 'columns_present': 'A,B,C,D,E,F,G,H,I,J,K,L,N,O,P,R,T,U'}
+total_inventory_rows=32655
+total_move_rows=30800
