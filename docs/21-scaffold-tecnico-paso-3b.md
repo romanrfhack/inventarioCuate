@@ -1,5 +1,7 @@
 # 21. Scaffold técnico Paso 3B
 
+> Actualización de baseline técnico: el scaffold backend queda alineado a .NET 10 (`net10.0`). Cualquier referencia anterior a .NET 8 debe considerarse superada.
+
 ## Objetivo
 
 Materializar un scaffold real, navegable y listo para crecer por slices sobre ASP.NET Core Web API + Angular + SQL Server, respetando el baseline funcional ya definido.
@@ -65,7 +67,7 @@ Materializar un scaffold real, navegable y listo para crecer por slices sobre AS
 
 ## Migración inicial
 
-No se dejó una migración inicial generada en este repo porque el entorno actual no tiene `dotnet SDK` instalado, así que no fue posible ejecutar `dotnet ef migrations add InitialCreate` de forma verificable aquí.
+No se dejó una migración inicial generada en este repo porque el entorno actual no tiene `dotnet SDK 10` instalado, así que no fue posible ejecutar `dotnet ef migrations add InitialCreate` de forma verificable aquí.
 
 Sí quedó listo el `DbContext` para generar la migración en cuanto exista SDK en el entorno.
 
@@ -86,18 +88,19 @@ Motivo: falta `dotnet` en el host actual.
 ## Cómo ejecutar
 
 ### Backend
-1. instalar `.NET SDK 8`
-2. levantar SQL Server demo:
+1. instalar `.NET SDK 10`
+2. instalar la herramienta `dotnet-ef` compatible con .NET 10 si no viene disponible globalmente
+3. levantar SQL Server demo:
    ```bash
    cd app
    docker compose -f docker-compose.demo.yml up -d
    ```
 3. exportar variables desde `.env.demo.example`
-4. generar migración inicial:
+5. generar migración inicial:
    ```bash
    dotnet ef migrations add InitialCreate --project src/Infrastructure --startup-project src/Api --output-dir Persistence/Migrations
    ```
-5. correr la API:
+6. correr la API:
    ```bash
    dotnet run --project src/Api
    ```
