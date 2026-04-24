@@ -1,0 +1,23 @@
+# General
+.DS_Store
+*.user
+*.suo
+*.cache
+node_modules/
+dist/
+.vscode/
+
+# .NET
+bin/
+obj/
+*.db
+*.db-shm
+*.db-wal
+
+# App settings
+appsettings.Local.json
+appsettings.*.local.json
+
+# Angular
+.angular/
+coverage/

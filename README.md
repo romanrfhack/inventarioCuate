@@ -2,13 +2,13 @@
 
 ## Estado actual
 
-Este repositorio corresponde a la fase 1 del proyecto Refaccionaria CUATE - Inventario Operativo.
+Este repositorio ya incluye el scaffold técnico base del MVP.
 
-En esta fase no se está construyendo todavía la aplicación completa. El foco actual es:
-- ordenar el repositorio
-- documentar contexto y alcance inicial
-- auditar el Excel operativo actual
-- generar artefactos provisionales de normalización para preparar el diseño posterior
+Estado del trabajo:
+- documentación funcional y técnica base cerrada
+- scaffold real de backend ASP.NET Core Web API + frontend Angular
+- configuración demo con SQL Server, autenticación mínima, seed demo y reset auditado
+- slices de negocio todavía pendientes de implementación completa
 
 ## Estructura
 
@@ -16,7 +16,9 @@ En esta fase no se está construyendo todavía la aplicación completa. El foco 
 - `data/raw/`: insumos fuente sin alterar
 - `data/processed/`: salidas de análisis y archivos derivados provisionales
 - `scripts/inspect_excel/`: scripts de inspección del Excel actual
-- `app/`: placeholder para implementación futura
+- `app/src/`: solución backend .NET por capas ligeras (`Api`, `Application`, `Domain`, `Infrastructure`)
+- `app/frontend/`: aplicación Angular base navegable
+- `app/docker-compose.demo.yml`: SQL Server demo local
 
 ## Fuente auditada
 
@@ -37,8 +39,8 @@ En esta fase no se está construyendo todavía la aplicación completa. El foco 
 
 - La auditoría parte de evidencia real del archivo `.xlsm`.
 - Cuando hay inferencias, se documentan explícitamente como inferencias.
-- No se fija todavía stack final de backend o frontend.
-- `app/` permanece como placeholder hasta cerrar requerimientos y modelo operativo.
+- El stack del scaffold quedó fijado en ASP.NET Core Web API + Angular + SQL Server para el MVP.
+- Revisa `docs/21-scaffold-tecnico-paso-3b.md` para detalle técnico, ejecución y límites conscientes del scaffold.
 
 ## Ejecución del script de inspección
 

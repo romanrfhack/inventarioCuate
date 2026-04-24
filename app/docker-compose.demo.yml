@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: cuate-sql-demo
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "CuateDemo_2026!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "14333:1433"
+    volumes:
+      - sqlserver_demo_data:/var/opt/mssql
+volumes:
+  sqlserver_demo_data:
