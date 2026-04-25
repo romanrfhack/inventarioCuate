@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { InventorySummaryItem, ProductItem } from '../models/catalog.models';
 import { InitialLoadApplyResponse, InitialLoadListItem, InitialLoadPreviewSummary } from '../models/initial-load.models';
 import { CancelSaleResponse, QuickSaleRequestItem, QuickSaleResponse, SaleDetail, SaleListItem, SalesFilter } from '../models/sales.models';
+import { OperationsReport } from '../models/reports.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -75,5 +76,9 @@ export class ApiService {
 
   cancelSale(saleId: string): Observable<CancelSaleResponse> {
     return this.http.post<CancelSaleResponse>(`${this.apiBase}/sales/${saleId}/cancel`, {});
+  }
+
+  getOperationsReport(): Observable<OperationsReport> {
+    return this.http.get<OperationsReport>(`${this.apiBase}/reports/operations`);
   }
 }
