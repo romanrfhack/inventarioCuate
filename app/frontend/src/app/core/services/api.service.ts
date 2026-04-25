@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { InventorySummaryItem, ProductItem } from '../models/catalog.models';
 import { InitialLoadApplyResponse, InitialLoadListItem, InitialLoadPreviewSummary } from '../models/initial-load.models';
-import { QuickSaleRequestItem, QuickSaleResponse } from '../models/sales.models';
+import { CancelSaleResponse, QuickSaleRequestItem, QuickSaleResponse, SaleListItem } from '../models/sales.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -45,5 +45,13 @@ export class ApiService {
 
   createQuickSale(items: QuickSaleRequestItem[]): Observable<QuickSaleResponse> {
     return this.http.post<QuickSaleResponse>(`${this.apiBase}/sales/quick`, { items });
+  }
+
+  getSales(): Observable<SaleListItem[]> {
+    return this.http.get<SaleListItem[]>(`${this.apiBase}/sales`);
+  }
+
+  cancelSale(saleId: string): Observable<CancelSaleResponse> {
+    return this.http.post<CancelSaleResponse>(`${this.apiBase}/sales/${saleId}/cancel`, {});
   }
 }

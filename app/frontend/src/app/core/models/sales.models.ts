@@ -20,3 +20,37 @@ export interface QuickSaleResponse {
   createdAt: string;
   items: QuickSaleResponseItem[];
 }
+
+export interface SaleListItem {
+  saleId: string;
+  folio: string;
+  status: string;
+  total: number;
+  createdAt: string;
+  itemCount: number;
+  totalQuantity: number;
+  items: SaleListDetailItem[];
+}
+
+export interface SaleListDetailItem {
+  productId: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+export interface CancelSaleResponse {
+  saleId: string;
+  folio: string;
+  status: string;
+  cancelledAt: string;
+  items: CancelledSaleItem[];
+}
+
+export interface CancelledSaleItem {
+  productId: string;
+  description: string;
+  restoredQuantity: number;
+  resultingStock: number;
+}

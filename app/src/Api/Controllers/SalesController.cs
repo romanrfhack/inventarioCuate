@@ -14,6 +14,23 @@ namespace RefaccionariaCuate.Api.Controllers;
 [Route("api/sales")]
 public sealed class SalesController(ApplicationDbContext dbContext) : ControllerBase
 {
+    [HttpGet]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyCollection<SaleListItemResponse>>> GetSales(CancellationToken cancellationToken)
+    {
+        var sales = await dbContext.Sales
+            .AsNoTracking()
+            .Include(x => x.Details)
+                .ThenInclude(x => x.Product)
+            .ToListAsync(cancellationToken);
+
+        return Ok(sales
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(50)
+            .Select(MapSaleListItem)
+            .ToList());
+    }
+
     [HttpPost("quick")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -143,9 +160,111 @@ public sealed class SalesController(ApplicationDbContext dbContext) : Controller
         return Ok(response);
     }
 
+    [HttpPost("{saleId:guid}/cancel")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<CancelSaleResponse>> CancelSale(Guid saleId, CancellationToken cancellationToken)
+    {
+        var sale = await dbContext.Sales
+            .Include(x => x.Details)
+                .ThenInclude(x => x.Product)
+                    .ThenInclude(x => x.InventoryBalance)
+            .SingleOrDefaultAsync(x => x.Id == saleId, cancellationToken);
+
+        if (sale is null)
+        {
+            return NotFound(new { code = "404_SALE_NOT_FOUND", message = "La venta no existe." });
+        }
+
+        if (sale.Status == "cancelled")
+        {
+            return Conflict(new { code = "409_SALE_ALREADY_CANCELLED", message = "La venta ya fue cancelada." });
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var userId = TryGetUserId();
+        var restoredItems = new List<CancelledSaleItemResponse>();
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        foreach (var detail in sale.Details)
+        {
+            var balance = detail.Product.InventoryBalance;
+            if (balance is null)
+            {
+                balance = new InventoryBalance
+                {
+                    ProductId = detail.ProductId,
+                    CurrentStock = 0,
+                    UpdatedAt = now
+                };
+
+                detail.Product.InventoryBalance = balance;
+                await dbContext.InventoryBalances.AddAsync(balance, cancellationToken);
+            }
+
+            balance.CurrentStock += detail.Quantity;
+            balance.UpdatedAt = now;
+
+            restoredItems.Add(new CancelledSaleItemResponse(
+                detail.ProductId,
+                detail.Product.Description,
+                detail.Quantity,
+                balance.CurrentStock));
+
+            await dbContext.InventoryMovements.AddAsync(new InventoryMovement
+            {
+                ProductId = detail.ProductId,
+                MovementType = MovementType.VentaCancelacion,
+                Quantity = detail.Quantity,
+                ResultingStock = balance.CurrentStock,
+                SourceType = "sale_cancellation",
+                SourceId = sale.Id.ToString(),
+                Reason = $"Cancelación de venta {sale.Folio}",
+                UserId = userId,
+                CreatedAt = now
+            }, cancellationToken);
+        }
+
+        sale.Status = "cancelled";
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Ok(new CancelSaleResponse(
+            sale.Id,
+            sale.Folio,
+            sale.Status,
+            now,
+            restoredItems));
+    }
+
     private Guid? TryGetUserId()
     {
         var raw = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
         return Guid.TryParse(raw, out var userId) ? userId : null;
+    }
+
+    private static SaleListItemResponse MapSaleListItem(Sale sale)
+    {
+        var items = sale.Details
+            .Select(detail => new SaleListDetailResponse(
+                detail.ProductId,
+                detail.Product.Description,
+                detail.Quantity,
+                detail.UnitPrice,
+                detail.LineTotal))
+            .ToList();
+
+        return new SaleListItemResponse(
+            sale.Id,
+            sale.Folio,
+            sale.Status,
+            sale.Total,
+            sale.CreatedAt,
+            items.Count,
+            items.Sum(x => x.Quantity),
+            items);
     }
 }
