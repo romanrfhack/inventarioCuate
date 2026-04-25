@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { InventorySummaryItem, ProductItem } from '../models/catalog.models';
+import { InitialLoadApplyResponse, InitialLoadListItem, InitialLoadPreviewSummary } from '../models/initial-load.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -25,7 +26,15 @@ export class ApiService {
     return this.http.post(`${this.apiBase}/demo-admin/seed`, {});
   }
 
-  previewInitialLoad() {
-    return this.http.post<{ loadId: string; confirmationToken: string; summary: unknown }>(`${this.apiBase}/initial-load/preview`, {});
+  previewInitialLoad(fileName: string, csvContent: string): Observable<InitialLoadPreviewSummary> {
+    return this.http.post<InitialLoadPreviewSummary>(`${this.apiBase}/initial-load/preview`, { fileName, csvContent });
+  }
+
+  applyInitialLoad(loadId: string, confirmationToken: string): Observable<InitialLoadApplyResponse> {
+    return this.http.post<InitialLoadApplyResponse>(`${this.apiBase}/initial-load/apply/${loadId}`, { confirmationToken });
+  }
+
+  getInitialLoads(): Observable<InitialLoadListItem[]> {
+    return this.http.get<InitialLoadListItem[]>(`${this.apiBase}/initial-load`);
   }
 }

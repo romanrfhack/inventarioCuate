@@ -11,7 +11,9 @@ Incluye:
 - trazabilidad de usuario, fecha y lote
 - pruebas automatizadas del parser y de consistencia de persistencia del flujo
 - script operativo mínimo para ejecutar una carga controlada contra la API ya levantada
+- prueba operativa HTTP repetible del flujo preview -> apply -> consulta
 - consulta de cargas previas y su estado
+- UI mínima usable para carga inicial y consulta de cargas
 
 ## Reglas aplicadas
 
@@ -39,6 +41,17 @@ Incluye:
 - `POST /api/initial-load/preview`
 - `POST /api/initial-load/apply/{loadId}`
 
+## UI mínima incorporada
+
+Pantalla `carga-inicial` con:
+- captura o pegado de CSV
+- selección de archivo `.csv`
+- ejecución de preview
+- resumen de válidas, warnings e inválidas
+- tabla básica de filas con estado
+- confirmación segura antes de apply
+- consulta de cargas previas y su estado
+
 ## Validaciones implementadas
 
 ### Preview
@@ -65,11 +78,11 @@ Incluye:
 
 ## Pendientes del siguiente slice
 
-- pruebas HTTP end-to-end contra API real y base de datos para preview/apply completo
+- endurecer el flujo visual con mejores mensajes de error y éxito
 - parser multipart/file upload si se decide cambiar el contrato actual
 - homologación asistida de productos duplicados o similares
-- vista frontend para preview y confirmación de carga
-- endurecer auditoría de cambios por lote
+- auditoría más detallada por lote
+- tratamiento más explícito de coincidencias ambiguas
 
 ## Qué ya quedó validado con más confianza operativa
 
@@ -77,6 +90,8 @@ Incluye:
 - el parser CSV quedó validado automáticamente
 - la persistencia base del lote aplicado quedó validada automáticamente en tests
 - la presencia de productos, inventario actual y movimientos `carga_inicial` quedó cubierta en pruebas de consistencia
+- la UI mínima de carga inicial compila y ya permite operar el flujo sin llamadas manuales directas a la API
+- existe una prueba operativa HTTP repetible vía script para preview -> apply -> consulta
 
 ## Validación manual ya confirmada
 
