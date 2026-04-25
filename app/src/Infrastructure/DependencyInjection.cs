@@ -19,12 +19,17 @@ public static class DependencyInjection
         if (string.Equals(provider, "Sqlite", StringComparison.OrdinalIgnoreCase))
         {
             var connectionString = configuration.GetConnectionString("DefaultConnection") ?? "Data Source=refaccionaria-cuate.db";
-            services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connectionString));
+            services.AddDbContext<ApplicationDbContext>(options =>
+                options
+                    .UseSqlite(connectionString)
+                    .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
         }
         else
         {
             services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+                options
+                    .UseSqlServer(configuration.GetConnectionString("DefaultConnection"))
+                    .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
         }
 
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();

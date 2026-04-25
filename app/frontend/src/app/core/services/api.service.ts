@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { InventorySummaryItem, ProductItem } from '../models/catalog.models';
 import { InitialLoadApplyResponse, InitialLoadListItem, InitialLoadPreviewSummary } from '../models/initial-load.models';
+import { QuickSaleRequestItem, QuickSaleResponse } from '../models/sales.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -40,5 +41,9 @@ export class ApiService {
 
   getInitialLoadDetail(loadId: string): Observable<InitialLoadPreviewSummary> {
     return this.http.get<InitialLoadPreviewSummary>(`${this.apiBase}/initial-load/${loadId}`);
+  }
+
+  createQuickSale(items: QuickSaleRequestItem[]): Observable<QuickSaleResponse> {
+    return this.http.post<QuickSaleResponse>(`${this.apiBase}/sales/quick`, { items });
   }
 }

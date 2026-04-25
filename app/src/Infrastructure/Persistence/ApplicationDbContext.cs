@@ -13,6 +13,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<Shift> Shifts => Set<Shift>();
     public DbSet<InitialInventoryLoad> InitialInventoryLoads => Set<InitialInventoryLoad>();
     public DbSet<InitialInventoryLoadDetail> InitialInventoryLoadDetails => Set<InitialInventoryLoadDetail>();
+    public DbSet<Sale> Sales => Set<Sale>();
+    public DbSet<SaleDetail> SaleDetails => Set<SaleDetail>();
     public DbSet<DemoResetAudit> DemoResetAudits => Set<DemoResetAudit>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -99,6 +101,30 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(x => x.InitialStock).HasColumnType("decimal(18,2)");
             entity.Property(x => x.Cost).HasColumnType("decimal(18,2)");
             entity.Property(x => x.SalePrice).HasColumnType("decimal(18,2)");
+        });
+
+        modelBuilder.Entity<Sale>(entity =>
+        {
+            entity.ToTable("Sales");
+            entity.HasIndex(x => x.Folio).IsUnique();
+            entity.Property(x => x.Folio).HasMaxLength(32);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.Property(x => x.Total).HasColumnType("decimal(18,2)");
+            entity.HasMany(x => x.Details)
+                .WithOne(x => x.Sale)
+                .HasForeignKey(x => x.SaleId);
+        });
+
+        modelBuilder.Entity<SaleDetail>(entity =>
+        {
+            entity.ToTable("SaleDetails");
+            entity.HasIndex(x => x.SaleId);
+            entity.Property(x => x.Quantity).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.UnitPrice).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.LineTotal).HasColumnType("decimal(18,2)");
+            entity.HasOne(x => x.Product)
+                .WithMany(x => x.SaleDetails)
+                .HasForeignKey(x => x.ProductId);
         });
 
         modelBuilder.Entity<DemoResetAudit>(entity =>

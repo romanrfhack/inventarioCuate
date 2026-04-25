@@ -12,6 +12,8 @@ public interface IApplicationDbContext
     DbSet<Shift> Shifts { get; }
     DbSet<InitialInventoryLoad> InitialInventoryLoads { get; }
     DbSet<InitialInventoryLoadDetail> InitialInventoryLoadDetails { get; }
+    DbSet<Sale> Sales { get; }
+    DbSet<SaleDetail> SaleDetails { get; }
     DbSet<DemoResetAudit> DemoResetAudits { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

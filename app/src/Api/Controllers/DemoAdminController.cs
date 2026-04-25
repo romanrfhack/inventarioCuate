@@ -59,7 +59,7 @@ public sealed class DemoAdminController(
         var affectedProducts = await dbContext.Products.CountAsync(cancellationToken);
         var affectedLoads = await dbContext.InitialInventoryLoads.CountAsync(cancellationToken);
 
-        await dbContext.Database.ExecuteSqlRawAsync("DELETE FROM [app].[InitialInventoryLoadDetails]; DELETE FROM [app].[InitialInventoryLoads]; DELETE FROM [app].[InventoryMovements]; DELETE FROM [app].[InventoryBalances]; DELETE FROM [app].[Products];", cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync("DELETE FROM [app].[SaleDetails]; DELETE FROM [app].[Sales]; DELETE FROM [app].[InitialInventoryLoadDetails]; DELETE FROM [app].[InitialInventoryLoads]; DELETE FROM [app].[InventoryMovements]; DELETE FROM [app].[InventoryBalances]; DELETE FROM [app].[Products];", cancellationToken);
 
         await dbContext.DemoResetAudits.AddAsync(new DemoResetAudit
         {

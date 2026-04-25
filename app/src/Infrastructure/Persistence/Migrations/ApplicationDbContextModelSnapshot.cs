@@ -286,6 +286,69 @@ namespace RefaccionariaCuate.Infrastructure.Persistence.Migrations
                     b.ToTable("Products", "app");
                 });
 
+            modelBuilder.Entity("RefaccionariaCuate.Domain.Entities.Sale", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Folio")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<decimal>("Total")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Folio")
+                        .IsUnique();
+
+                    b.ToTable("Sales", "app");
+                });
+
+            modelBuilder.Entity("RefaccionariaCuate.Domain.Entities.SaleDetail", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("SaleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("SaleId");
+
+                    b.ToTable("SaleDetails", "app");
+                });
+
             modelBuilder.Entity("RefaccionariaCuate.Domain.Entities.Shift", b =>
                 {
                     b.Property<Guid>("Id")
@@ -389,6 +452,25 @@ namespace RefaccionariaCuate.Infrastructure.Persistence.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("RefaccionariaCuate.Domain.Entities.SaleDetail", b =>
+                {
+                    b.HasOne("RefaccionariaCuate.Domain.Entities.Product", "Product")
+                        .WithMany("SaleDetails")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RefaccionariaCuate.Domain.Entities.Sale", "Sale")
+                        .WithMany("Details")
+                        .HasForeignKey("SaleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Sale");
+                });
+
             modelBuilder.Entity("RefaccionariaCuate.Domain.Entities.InitialInventoryLoad", b =>
                 {
                     b.Navigation("Details");
@@ -399,6 +481,13 @@ namespace RefaccionariaCuate.Infrastructure.Persistence.Migrations
                     b.Navigation("InventoryBalance");
 
                     b.Navigation("Movements");
+
+                    b.Navigation("SaleDetails");
+                });
+
+            modelBuilder.Entity("RefaccionariaCuate.Domain.Entities.Sale", b =>
+                {
+                    b.Navigation("Details");
                 });
 #pragma warning restore 612, 618
         }
