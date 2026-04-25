@@ -19,7 +19,11 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await dbContext.Database.MigrateAsync();
+
+    if (!app.Environment.IsEnvironment("IntegrationTest"))
+    {
+        await dbContext.Database.MigrateAsync();
+    }
 
     if (app.Environment.IsEnvironment("Demo"))
     {
@@ -29,3 +33,5 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+public partial class Program;

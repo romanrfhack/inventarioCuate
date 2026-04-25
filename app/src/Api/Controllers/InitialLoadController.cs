@@ -19,9 +19,8 @@ public sealed class InitialLoadController(ApplicationDbContext dbContext, Initia
     [HttpGet]
     public async Task<ActionResult<IReadOnlyCollection<InitialLoadListItemResponse>>> GetLoads(CancellationToken cancellationToken)
     {
-        var loads = await dbContext.InitialInventoryLoads
+        var loads = (await dbContext.InitialInventoryLoads
             .AsNoTracking()
-            .OrderByDescending(x => x.CreatedAt)
             .Select(x => new InitialLoadListItemResponse(
                 x.Id,
                 x.FileName ?? string.Empty,
@@ -32,7 +31,9 @@ public sealed class InitialLoadController(ApplicationDbContext dbContext, Initia
                 x.Details.Count(d => d.RowStatus == "valid"),
                 x.Details.Count(d => d.RowStatus == "invalid"),
                 x.Details.Count(d => d.RowStatus == "warning")))
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken))
+            .OrderByDescending(x => x.CreatedAt)
+            .ToList();
 
         return Ok(loads);
     }
