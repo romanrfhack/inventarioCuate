@@ -37,4 +37,8 @@ export class ApiService {
   getInitialLoads(): Observable<InitialLoadListItem[]> {
     return this.http.get<InitialLoadListItem[]>(`${this.apiBase}/initial-load`);
   }
+
+  getInitialLoadDetail(loadId: string): Observable<InitialLoadPreviewSummary> {
+    return this.http.get<InitialLoadPreviewSummary>(`${this.apiBase}/initial-load/${loadId}`);
+  }
 }
