@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { InventorySummaryItem, ProductItem } from '../models/catalog.models';
+import { ProductItem } from '../models/catalog.models';
+import { InventoryMovementResult, InventorySummaryItem, RegisterInventoryAdjustmentRequest, RegisterInventoryEntryRequest } from '../models/inventory.models';
 import { InitialLoadApplyResponse, InitialLoadListItem, InitialLoadPreviewSummary } from '../models/initial-load.models';
 import { CancelSaleResponse, QuickSaleRequestItem, QuickSaleResponse, SaleDetail, SaleListItem, SalesFilter } from '../models/sales.models';
 import { OperationsReport } from '../models/reports.models';
@@ -18,6 +19,14 @@ export class ApiService {
 
   getInventorySummary(): Observable<InventorySummaryItem[]> {
     return this.http.get<InventorySummaryItem[]>(`${this.apiBase}/inventory/summary`);
+  }
+
+  registerInventoryEntry(request: RegisterInventoryEntryRequest): Observable<InventoryMovementResult> {
+    return this.http.post<InventoryMovementResult>(`${this.apiBase}/inventory/entries`, request);
+  }
+
+  registerInventoryAdjustment(request: RegisterInventoryAdjustmentRequest): Observable<InventoryMovementResult> {
+    return this.http.post<InventoryMovementResult>(`${this.apiBase}/inventory/adjustments`, request);
   }
 
   getDemoStatus() {

@@ -9,9 +9,3 @@ export interface ProductItem {
   requiresReview: boolean;
 }
 
-export interface InventorySummaryItem {
-  productId: string;
-  description: string;
-  currentStock: number;
-  updatedAt: string;
-}
