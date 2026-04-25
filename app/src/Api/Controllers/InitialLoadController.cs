@@ -16,6 +16,56 @@ namespace RefaccionariaCuate.Api.Controllers;
 [Route("api/initial-load")]
 public sealed class InitialLoadController(ApplicationDbContext dbContext, InitialInventoryCsvParser csvParser) : ControllerBase
 {
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyCollection<InitialLoadListItemResponse>>> GetLoads(CancellationToken cancellationToken)
+    {
+        var loads = await dbContext.InitialInventoryLoads
+            .AsNoTracking()
+            .OrderByDescending(x => x.CreatedAt)
+            .Select(x => new InitialLoadListItemResponse(
+                x.Id,
+                x.FileName ?? string.Empty,
+                x.Status,
+                x.LoadType,
+                x.CreatedAt,
+                x.Details.Count,
+                x.Details.Count(d => d.RowStatus == "valid"),
+                x.Details.Count(d => d.RowStatus == "invalid"),
+                x.Details.Count(d => d.RowStatus == "warning")))
+            .ToListAsync(cancellationToken);
+
+        return Ok(loads);
+    }
+
+    [HttpGet("{loadId:guid}")]
+    public async Task<IActionResult> GetLoad(Guid loadId, CancellationToken cancellationToken)
+    {
+        var load = await dbContext.InitialInventoryLoads
+            .AsNoTracking()
+            .Include(x => x.Details)
+            .SingleOrDefaultAsync(x => x.Id == loadId, cancellationToken);
+
+        if (load is null)
+        {
+            return NotFound();
+        }
+
+        var summary = JsonDocument.Parse(load.SummaryJson).RootElement;
+        return Ok(new
+        {
+            load.Id,
+            load.FileName,
+            load.Status,
+            load.LoadType,
+            load.CreatedAt,
+            summary,
+            rows = load.Details
+                .OrderBy(x => x.SourceRow)
+                .Select(x => new InitialLoadPreviewRowResponse(x.SourceRow, x.Code, x.Description, x.InitialStock, x.RowStatus, x.ReviewReason))
+                .ToList()
+        });
+    }
+
     [HttpPost("preview")]
     public async Task<IActionResult> Preview([FromBody] InitialLoadPreviewRequest request, CancellationToken cancellationToken)
     {

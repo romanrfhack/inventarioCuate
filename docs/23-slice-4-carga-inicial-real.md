@@ -9,8 +9,9 @@ Incluye:
 - preview real persistido por fila
 - apply transaccional real sobre cargas válidas
 - trazabilidad de usuario, fecha y lote
-- pruebas automatizadas del parser y reglas de validación
+- pruebas automatizadas del parser y de consistencia de persistencia del flujo
 - script operativo mínimo para ejecutar una carga controlada contra la API ya levantada
+- consulta de cargas previas y su estado
 
 ## Reglas aplicadas
 
@@ -33,6 +34,8 @@ Incluye:
 
 ## Endpoints afectados
 
+- `GET /api/initial-load`
+- `GET /api/initial-load/{loadId}`
 - `POST /api/initial-load/preview`
 - `POST /api/initial-load/apply/{loadId}`
 
@@ -57,16 +60,23 @@ Incluye:
 
 - todavía no hay matching más sofisticado que código exacto
 - proveedor sigue siendo dato pendiente de homologación real
-- aún faltan pruebas de integración HTTP end-to-end embebidas en el suite de tests
+- aún faltan pruebas HTTP end-to-end embebidas en el suite de tests
 - todavía no existe UI completa para operar esta carga desde frontend
 
 ## Pendientes del siguiente slice
 
-- pruebas de integración HTTP end-to-end contra API real y base de datos para preview/apply completo
+- pruebas HTTP end-to-end contra API real y base de datos para preview/apply completo
 - parser multipart/file upload si se decide cambiar el contrato actual
 - homologación asistida de productos duplicados o similares
 - vista frontend para preview y confirmación de carga
 - endurecer auditoría de cambios por lote
+
+## Qué ya quedó validado con más confianza operativa
+
+- el flujo preview -> apply fue validado manualmente a nivel API en el VPS
+- el parser CSV quedó validado automáticamente
+- la persistencia base del lote aplicado quedó validada automáticamente en tests
+- la presencia de productos, inventario actual y movimientos `carga_inicial` quedó cubierta en pruebas de consistencia
 
 ## Validación manual ya confirmada
 
