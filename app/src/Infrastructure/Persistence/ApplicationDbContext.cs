@@ -27,6 +27,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(x => x.PrimaryCode).HasMaxLength(64);
             entity.Property(x => x.Description).HasMaxLength(256);
             entity.Property(x => x.Brand).HasMaxLength(128);
+            entity.Property(x => x.CurrentCost).HasPrecision(18, 2);
+            entity.Property(x => x.CurrentSalePrice).HasPrecision(18, 2);
             entity.Property(x => x.Unit).HasMaxLength(16);
             entity.Property(x => x.Status).HasMaxLength(32);
             entity.HasOne(x => x.InventoryBalance)

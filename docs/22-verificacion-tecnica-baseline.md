@@ -2,114 +2,178 @@
 
 ## Estado
 
-Documento de verificación técnica del baseline ejecutable del scaffold.
+Cierre técnico del baseline ejecutable del scaffold del proyecto.
 
-## Nota previa
+## Fuente de verdad usada para este cierre
 
-Antes de cerrar esta verificación se cambió el baseline técnico del backend a .NET 10.
+Además de la inspección local del repositorio, este cierre incorpora como evidencia válida el estado manual ya confirmado en el VPS.
 
 ## Entorno encontrado
 
 - sistema operativo: Ubuntu 24.04.4 LTS
-- Node.js disponible
-- npm disponible
-- `dotnet` no instalado al momento de esta revisión
-- `docker` no instalado al momento de esta revisión
+- Node.js y npm operativos
+- .NET 10 SDK instalado y operativo
+- `dotnet-ef` instalado y operativo
+- Docker y Docker Compose instalados y operativos
+- `global.json` alineado a `10.0.107`
 
 ## Dependencias faltantes detectadas
 
-- `dotnet-sdk-10.0`
-- tooling de EF Core para .NET 10 (`dotnet-ef`)
-- motor de contenedores para correr SQL Server demo (`docker.io`)
-- plugin/soporte de compose para levantar `docker-compose.demo.yml`
+No quedaron dependencias técnicas faltantes para compilar y ejecutar el baseline del scaffold.
 
 ## Dependencias instaladas
 
-Pendiente en este punto de la verificación. No se ejecutó instalación todavía porque primero se alineó el scaffold a .NET 10.
+Instaladas previamente en el VPS y validadas manualmente:
+- .NET 10 SDK
+- dotnet-ef
+- Docker
+- Docker Compose
 
 ## Ajustes realizados al scaffold
 
-- `app/src/Api/RefaccionariaCuate.Api.csproj` -> `net10.0`
-- `app/src/Application/RefaccionariaCuate.Application.csproj` -> `net10.0`
-- `app/src/Domain/RefaccionariaCuate.Domain.csproj` -> `net10.0`
-- `app/src/Infrastructure/RefaccionariaCuate.Infrastructure.csproj` -> `net10.0`
-- paquetes EF Core actualizados a `10.0.0`
-- `Microsoft.AspNetCore.Authentication.JwtBearer` actualizado a `10.0.0`
-- `Microsoft.Extensions.Options.ConfigurationExtensions` actualizado a `10.0.0`
+- backend alineado a `.NET 10` (`net10.0`)
+- EF Core alineado a `10.0.0`
 - documentación del scaffold actualizada a .NET 10
+- precisión explícita agregada para:
+  - `Product.CurrentCost`
+  - `Product.CurrentSalePrice`
+- flujo `initial-load/apply` endurecido para exigir preview fresco y evitar reaplicación ambigua sobre estados no válidos
+- token de confirmación de preview cambiado a token aleatorio por request en vez de valor fijo
 
-## Disponibilidad de SDK en este host
+## Comandos ejecutados
 
-`apt-cache policy` confirma disponibilidad de:
-- `dotnet-sdk-10.0` candidato `10.0.107-0ubuntu1~24.04.1`
+### Verificados manualmente en el VPS
+- build de la solución
+- generación/aplicación de migración inicial
+- arranque de SQL Server demo
+- arranque de la API en entorno Demo
+- login con `admin.demo`
+- llamada a `demo-admin/status`
+- llamada a `demo-admin/seed`
+- validación de protección de `demo-admin/reset`
+- ejecución de reset real
+- validación posterior de status con `productCount = 0`
+- seed posterior con `productCount = 3`
 
-## Impacto en paquetes o tooling
-
-- EF Core debe usarse en versión 10.x para alinear runtime y tooling
-- la generación de migraciones debe ejecutarse con `dotnet-ef` compatible con SDK 10
-- no se detectó necesidad de cambiar Angular o frontend por este ajuste
-
-## Comandos ejecutados hasta ahora
-
-- inspección de estructura del repo
-- inspección de disponibilidad de `dotnet-sdk-10.0`
-- revisión de referencias `net8.0` / paquetes 8.x
-- actualización de proyectos a `net10.0`
-- actualización documental base
+### Inspección y ajustes complementarios en este cierre
+- revisión de proyectos y referencias a .NET 10
+- revisión del `DbContext`
+- revisión del flujo `initial-load/preview` y `initial-load/apply`
+- endurecimiento mínimo del flujo de apply
+- actualización documental de cierre técnico
 
 ## Resultado de build backend
 
-Pendiente, bloqueado por falta de instalación de `dotnet-sdk-10.0`.
+Validado como exitoso manualmente en el VPS.
 
 ## Resultado de build frontend
 
-Ya estaba verificado previamente como exitoso. No fue afectado por el cambio a .NET 10.
+Validado como exitoso.
 
 ## Resultado de migración inicial
 
-Pendiente, bloqueado por falta de `dotnet-sdk-10.0` y `dotnet-ef`.
+Validado como exitoso.
 
 ## Resultado de arranque API
 
-Pendiente, bloqueado por falta de `dotnet-sdk-10.0`.
+Validado como exitoso en:
+- `http://localhost:5098`
 
 ## Resultado de arranque BD demo
 
-Pendiente, bloqueado por falta de `docker` y compose.
+Validado como exitoso.
 
 ## Resultado de prueba mínima de autenticación
 
-Pendiente, depende de arranque API + BD.
+Validado como exitoso.
+
+Evidencia funcional confirmada:
+- login con `admin.demo` respondió correctamente
+- la configuración mínima de autenticación quedó operativa
 
 ## Resultado de prueba mínima de seed/reset demo
 
-Pendiente, depende de arranque API + BD.
+Validado como exitoso.
+
+Evidencia confirmada:
+- `demo-admin/status` respondió
+- `demo-admin/seed` respondió
+- protección de reset validada
+- reset real validado
+- status posterior al reset dejó `productCount = 0`
+- seed posterior volvió a dejar `productCount = 3`
+
+## Qué quedó validado realmente
+
+- scaffold backend compila
+- scaffold frontend compila
+- SQL Server demo arranca
+- la API arranca en entorno Demo
+- autenticación mínima funciona
+- seed demo funciona
+- reset demo protegido funciona
+- reset demo real funciona
+- migración inicial existe y aplica correctamente
+- el baseline técnico ya es ejecutable y verificable
+
+## Qué sigue pendiente
+
+### Pendiente principal
+- validar de forma limpia el happy path de `initial-load/apply` con un preview fresco completo y evidencia final de punta a punta
+
+### Alcance del pendiente
+- no bloquea el baseline ejecutable del scaffold
+- sí conviene cerrarlo antes de entrar fuerte al slice funcional de carga inicial real
+
+## Warnings no bloqueantes
+
+### 1. Vulnerabilidad reportada en `System.Security.Cryptography.Xml`
+
+Estado:
+- warning no bloqueante
+
+Hallazgo:
+- la dependencia aparece de forma transitiva en restore/assets
+- no se detectó uso directo de APIs XML criptográficas en el código del proyecto
+- la fuente probable es la cadena de dependencias de autenticación/JWT o librerías relacionadas del ecosistema Microsoft
+
+Recomendación mínima:
+- revisar con `dotnet list package --include-transitive --vulnerable` en el VPS para confirmar el árbol exacto
+- si existe versión transitiva superior segura compatible, actualizarla
+- si no bloquea el runtime real ni hay explotación aplicable al uso actual, tratarlo como hardening corto posterior, no como bloqueo del baseline
+
+### 2. Precisión decimal no explícita en `CurrentCost` y `CurrentSalePrice`
+
+Estado:
+- warning atendido en este cierre
+
+Acción tomada:
+- se agregó configuración explícita con `HasPrecision(18, 2)` en `ApplicationDbContext`
+
+## Riesgos remanentes
+
+- el flujo de carga inicial todavía está en modo scaffold técnico, no en parser real de negocio
+- `initial-load/apply` ya está mejor protegido, pero aún no ejecuta una aplicación transaccional completa de inventario real
+- el warning transitorio de `System.Security.Cryptography.Xml` debe revisarse como parte de endurecimiento de dependencias
+- reset demo funciona, pero requiere seguir cubriéndose con pruebas para evitar regresiones de seguridad
+
+## Ajuste mínimo aplicado al flujo initial-load/apply
+
+Se hizo un endurecimiento mínimo para que el flujo sea comprobable de manera más limpia:
+- `preview` genera token aleatorio por solicitud
+- `apply` solo acepta cargas en estado `previewed`
+- si la carga ya cambió de estado, devuelve conflicto y obliga a generar un preview fresco
+
+Impacto:
+- evita reaplicaciones ambiguas sobre previews viejos o ya mutados
+- no introduce todavía lógica de negocio pesada
 
 ## Bloqueadores reales remanentes
 
-### 1. `dotnet` no instalado
-- error exacto: `dotnet: command not found`
-- causa probable: SDK no instalado en el host
-- impacto: no se puede restaurar, compilar, correr API ni generar migraciones
-- siguiente acción mínima: instalar `dotnet-sdk-10.0`
+No hay bloqueadores técnicos fuertes para empezar implementación funcional.
 
-### 2. `docker` no instalado
-- error exacto: `docker: command not found`
-- causa probable: motor de contenedores no instalado en el host
-- impacto: no se puede levantar SQL Server demo con el compose del proyecto
-- siguiente acción mínima: instalar `docker.io` y soporte compose
+## Conclusión
 
-## Comando mínimo propuesto para destrabar la verificación
+El Paso 3C puede considerarse cerrado con baseline ejecutable y verificable.
 
-```bash
-apt-get update && apt-get install -y dotnet-sdk-10.0 dotnet-ef docker.io docker-compose-v2
-```
-
-## Nota sobre el comando
-
-- si `docker-compose-v2` no existiera con ese nombre en este host, debe sustituirse por el paquete disponible equivalente sin agregar software innecesario
-- el objetivo sigue siendo instalar lo mínimo para:
-  - compilar backend
-  - generar migración inicial
-  - correr API
-  - levantar SQL Server demo
+El único pendiente relevante antes de profundizar en carga inicial real es terminar la validación limpia del happy path de `initial-load/apply` sobre un preview fresco de punta a punta.

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,13 +21,15 @@ public sealed class InitialLoadController(ApplicationDbContext dbContext) : Cont
             ? parsedUserId
             : Guid.Empty;
 
+        var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+
         var load = new InitialInventoryLoad
         {
             LoadType = "csv_preview_stub",
             FileName = "inventario_inicial_template.csv",
             Status = "previewed",
             UserId = userId,
-            ConfirmationToken = "CONFIRM-INITIAL-LOAD",
+            ConfirmationToken = confirmationToken,
             SummaryJson = JsonSerializer.Serialize(new
             {
                 rows = 2,
@@ -64,15 +67,21 @@ public sealed class InitialLoadController(ApplicationDbContext dbContext) : Cont
             return BadRequest(new { message = "Token de confirmación inválido" });
         }
 
+        if (!string.Equals(load.Status, "previewed", StringComparison.Ordinal))
+        {
+            return Conflict(new { message = "La carga ya no está en estado previewed y debe regenerarse con un preview fresco" });
+        }
+
         load.Status = "ready_for_apply";
         load.SummaryJson = JsonSerializer.Serialize(new
         {
             previous = JsonDocument.Parse(load.SummaryJson).RootElement,
             applied = false,
-            nextStep = "Conectar parser y transacción real de carga inicial"
+            nextStep = "Conectar parser y transacción real de carga inicial",
+            requiresFreshPreview = false
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return Accepted(new { message = "Carga marcada para aplicación controlada", loadId = load.Id });
+        return Accepted(new { message = "Carga marcada para aplicación controlada", loadId = load.Id, status = load.Status });
     }
 }
