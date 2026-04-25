@@ -16,19 +16,71 @@ public sealed class SalesController(ApplicationDbContext dbContext) : Controller
 {
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyCollection<SaleListItemResponse>>> GetSales(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyCollection<SaleListItemResponse>>> GetSales(
+        [FromQuery] string? folio,
+        [FromQuery] string? status,
+        [FromQuery] DateOnly? dateFrom,
+        [FromQuery] DateOnly? dateTo,
+        CancellationToken cancellationToken)
     {
-        var sales = await dbContext.Sales
+        var query = dbContext.Sales
             .AsNoTracking()
             .Include(x => x.Details)
                 .ThenInclude(x => x.Product)
-            .ToListAsync(cancellationToken);
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(folio))
+        {
+            var normalizedFolio = folio.Trim();
+            query = query.Where(x => EF.Functions.Like(x.Folio, $"%{normalizedFolio}%"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            var normalizedStatus = status.Trim().ToLowerInvariant();
+            query = query.Where(x => x.Status == normalizedStatus);
+        }
+
+        var sales = await query.ToListAsync(cancellationToken);
+
+        if (dateFrom.HasValue)
+        {
+            sales = sales
+                .Where(x => DateOnly.FromDateTime(x.CreatedAt.UtcDateTime) >= dateFrom.Value)
+                .ToList();
+        }
+
+        if (dateTo.HasValue)
+        {
+            sales = sales
+                .Where(x => DateOnly.FromDateTime(x.CreatedAt.UtcDateTime) <= dateTo.Value)
+                .ToList();
+        }
 
         return Ok(sales
             .OrderByDescending(x => x.CreatedAt)
             .Take(50)
             .Select(MapSaleListItem)
             .ToList());
+    }
+
+    [HttpGet("{saleId:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<SaleDetailResponse>> GetSaleDetail(Guid saleId, CancellationToken cancellationToken)
+    {
+        var sale = await dbContext.Sales
+            .AsNoTracking()
+            .Include(x => x.Details)
+                .ThenInclude(x => x.Product)
+            .SingleOrDefaultAsync(x => x.Id == saleId, cancellationToken);
+
+        if (sale is null)
+        {
+            return NotFound(new { code = "404_SALE_NOT_FOUND", message = "La venta no existe." });
+        }
+
+        return Ok(MapSaleDetail(sale));
     }
 
     [HttpPost("quick")]
@@ -258,6 +310,29 @@ public sealed class SalesController(ApplicationDbContext dbContext) : Controller
             .ToList();
 
         return new SaleListItemResponse(
+            sale.Id,
+            sale.Folio,
+            sale.Status,
+            sale.Total,
+            sale.CreatedAt,
+            items.Count,
+            items.Sum(x => x.Quantity),
+            items);
+    }
+
+    private static SaleDetailResponse MapSaleDetail(Sale sale)
+    {
+        var items = sale.Details
+            .OrderBy(detail => detail.Product.Description)
+            .Select(detail => new SaleDetailItemResponse(
+                detail.ProductId,
+                detail.Product.Description,
+                detail.Quantity,
+                detail.UnitPrice,
+                detail.LineTotal))
+            .ToList();
+
+        return new SaleDetailResponse(
             sale.Id,
             sale.Folio,
             sale.Status,

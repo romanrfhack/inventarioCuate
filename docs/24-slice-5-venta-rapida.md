@@ -105,3 +105,21 @@ Errores relevantes:
 - `409_PRICE_REQUIRED`
 - `409_INSUFFICIENT_STOCK`
 - `409_SALE_ALREADY_CANCELLED`
+
+## Slice 5.2, ajuste incremental implementado
+
+### Backend
+- endpoint nuevo `GET /api/sales/{saleId}` para detalle puntual de venta
+- `GET /api/sales` ahora acepta filtros opcionales `folio`, `status`, `dateFrom`, `dateTo`
+- mantiene límite de 50 registros recientes ya filtrados
+- `GET /api/sales/{saleId}` responde `404_SALE_NOT_FOUND` si no existe
+
+### Frontend
+- listado de ventas con filtros básicos por folio, estatus y rango de fechas
+- botón `Ver detalle` para cargar desglose puntual de una venta sin recargar toda la pantalla
+- feedback visual mejorado al cancelar: resumen de última cancelación con partidas restituidas y stock resultante
+- badges de estatus para distinguir confirmadas vs canceladas
+
+### Pruebas críticas agregadas
+- consulta de detalle de venta con partidas y resumen acumulado
+- filtrado de ventas por estatus, coincidencia parcial de folio y fecha del día

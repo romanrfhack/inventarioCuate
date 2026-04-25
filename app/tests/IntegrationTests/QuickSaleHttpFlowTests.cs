@@ -124,10 +124,88 @@ public sealed class QuickSaleHttpFlowTests
         movements.Should().HaveCount(2);
         movements.Should().Contain(x => x.MovementType == "venta_cancelacion" && x.ResultingStock == stockBefore);
 
-        var listResult = await controller.GetSales(CancellationToken.None);
+        var listResult = await controller.GetSales(null, null, null, null, CancellationToken.None);
         var listOk = listResult.Result.Should().BeOfType<OkObjectResult>().Subject;
         var list = listOk.Value.Should().BeAssignableTo<IReadOnlyCollection<SaleListItemResponse>>().Subject;
         list.Should().ContainSingle(x => x.SaleId == sale.Id && x.Status == "cancelled");
+    }
+
+    [Fact]
+    public async Task GetSaleDetail_Should_Return_Items_And_Summary_For_Existing_Sale()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = CreateDbContext(connection);
+        await db.Database.EnsureCreatedAsync();
+        await SeedAsync(db);
+
+        var products = await db.Products.Include(x => x.InventoryBalance).OrderBy(x => x.Description).Take(2).ToListAsync();
+        var controller = CreateController(db);
+
+        var quickSale = await controller.CreateQuickSale(new CreateQuickSaleRequest
+        {
+            Items =
+            [
+                new CreateQuickSaleItemRequest { ProductId = products[0].Id, Quantity = 1m },
+                new CreateQuickSaleItemRequest { ProductId = products[1].Id, Quantity = 2m }
+            ]
+        }, CancellationToken.None);
+        var saleResponse = ((OkObjectResult)quickSale.Result!).Value.Should().BeOfType<QuickSaleResponse>().Subject;
+
+        var detailResult = await controller.GetSaleDetail(saleResponse.SaleId, CancellationToken.None);
+        var detailOk = detailResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var detail = detailOk.Value.Should().BeOfType<SaleDetailResponse>().Subject;
+
+        detail.SaleId.Should().Be(saleResponse.SaleId);
+        detail.ItemCount.Should().Be(2);
+        detail.TotalQuantity.Should().Be(3m);
+        detail.Items.Should().HaveCount(2);
+        detail.Items.Should().Contain(x => x.ProductId == products[0].Id && x.Quantity == 1m);
+        detail.Items.Should().Contain(x => x.ProductId == products[1].Id && x.Quantity == 2m);
+    }
+
+    [Fact]
+    public async Task GetSales_Should_Filter_By_Status_Folio_And_Date_Range()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = CreateDbContext(connection);
+        await db.Database.EnsureCreatedAsync();
+        await SeedAsync(db);
+
+        var product = await db.Products.Include(x => x.InventoryBalance).OrderBy(x => x.Description).FirstAsync();
+        var controller = CreateController(db);
+
+        var firstSale = await controller.CreateQuickSale(new CreateQuickSaleRequest
+        {
+            Items = [new CreateQuickSaleItemRequest { ProductId = product.Id, Quantity = 1m }]
+        }, CancellationToken.None);
+        var firstResponse = ((OkObjectResult)firstSale.Result!).Value.Should().BeOfType<QuickSaleResponse>().Subject;
+
+        await Task.Delay(20);
+
+        var secondSale = await controller.CreateQuickSale(new CreateQuickSaleRequest
+        {
+            Items = [new CreateQuickSaleItemRequest { ProductId = product.Id, Quantity = 1m }]
+        }, CancellationToken.None);
+        var secondResponse = ((OkObjectResult)secondSale.Result!).Value.Should().BeOfType<QuickSaleResponse>().Subject;
+
+        await controller.CancelSale(secondResponse.SaleId, CancellationToken.None);
+
+        var allForToday = await controller.GetSales(null, null, DateOnly.FromDateTime(DateTime.UtcNow), DateOnly.FromDateTime(DateTime.UtcNow), CancellationToken.None);
+        var allTodayOk = allForToday.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var allToday = allTodayOk.Value.Should().BeAssignableTo<IReadOnlyCollection<SaleListItemResponse>>().Subject;
+        allToday.Should().HaveCount(2);
+
+        var cancelledOnly = await controller.GetSales(null, "cancelled", null, null, CancellationToken.None);
+        var cancelledOk = cancelledOnly.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var cancelledList = cancelledOk.Value.Should().BeAssignableTo<IReadOnlyCollection<SaleListItemResponse>>().Subject;
+        cancelledList.Should().ContainSingle(x => x.SaleId == secondResponse.SaleId && x.Status == "cancelled");
+
+        var folioFiltered = await controller.GetSales(secondResponse.Folio[^4..], null, null, null, CancellationToken.None);
+        var folioOk = folioFiltered.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var folioList = folioOk.Value.Should().BeAssignableTo<IReadOnlyCollection<SaleListItemResponse>>().Subject;
+        folioList.Should().ContainSingle(x => x.SaleId == secondResponse.SaleId);
     }
 
     private static ApplicationDbContext CreateDbContext(SqliteConnection connection)

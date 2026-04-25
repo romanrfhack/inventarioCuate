@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { InventorySummaryItem, ProductItem } from '../models/catalog.models';
 import { InitialLoadApplyResponse, InitialLoadListItem, InitialLoadPreviewSummary } from '../models/initial-load.models';
-import { CancelSaleResponse, QuickSaleRequestItem, QuickSaleResponse, SaleListItem } from '../models/sales.models';
+import { CancelSaleResponse, QuickSaleRequestItem, QuickSaleResponse, SaleDetail, SaleListItem, SalesFilter } from '../models/sales.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -47,8 +47,30 @@ export class ApiService {
     return this.http.post<QuickSaleResponse>(`${this.apiBase}/sales/quick`, { items });
   }
 
-  getSales(): Observable<SaleListItem[]> {
-    return this.http.get<SaleListItem[]>(`${this.apiBase}/sales`);
+  getSales(filters?: SalesFilter): Observable<SaleListItem[]> {
+    let params = new HttpParams();
+
+    if (filters?.folio?.trim()) {
+      params = params.set('folio', filters.folio.trim());
+    }
+
+    if (filters?.status?.trim()) {
+      params = params.set('status', filters.status.trim());
+    }
+
+    if (filters?.dateFrom?.trim()) {
+      params = params.set('dateFrom', filters.dateFrom.trim());
+    }
+
+    if (filters?.dateTo?.trim()) {
+      params = params.set('dateTo', filters.dateTo.trim());
+    }
+
+    return this.http.get<SaleListItem[]>(`${this.apiBase}/sales`, { params });
+  }
+
+  getSaleDetail(saleId: string): Observable<SaleDetail> {
+    return this.http.get<SaleDetail>(`${this.apiBase}/sales/${saleId}`);
   }
 
   cancelSale(saleId: string): Observable<CancelSaleResponse> {

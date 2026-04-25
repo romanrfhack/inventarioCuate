@@ -21,6 +21,13 @@ export interface QuickSaleResponse {
   items: QuickSaleResponseItem[];
 }
 
+export interface SalesFilter {
+  folio?: string;
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
 export interface SaleListItem {
   saleId: string;
   folio: string;
@@ -33,6 +40,25 @@ export interface SaleListItem {
 }
 
 export interface SaleListDetailItem {
+  productId: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+export interface SaleDetail {
+  saleId: string;
+  folio: string;
+  status: string;
+  total: number;
+  createdAt: string;
+  itemCount: number;
+  totalQuantity: number;
+  items: SaleDetailItem[];
+}
+
+export interface SaleDetailItem {
   productId: string;
   description: string;
   quantity: number;
