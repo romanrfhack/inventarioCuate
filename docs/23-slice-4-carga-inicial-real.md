@@ -9,7 +9,8 @@ Incluye:
 - preview real persistido por fila
 - apply transaccional real sobre cargas válidas
 - trazabilidad de usuario, fecha y lote
-- pruebas mínimas del parser y reglas de validación
+- pruebas automatizadas del parser y reglas de validación
+- script operativo mínimo para ejecutar una carga controlada contra la API ya levantada
 
 ## Reglas aplicadas
 
@@ -56,13 +57,21 @@ Incluye:
 
 - todavía no hay matching más sofisticado que código exacto
 - proveedor sigue siendo dato pendiente de homologación real
-- aún faltan pruebas de integración end-to-end contra API/BD para todo el flujo preview/apply
+- aún faltan pruebas de integración HTTP end-to-end embebidas en el suite de tests
 - todavía no existe UI completa para operar esta carga desde frontend
 
 ## Pendientes del siguiente slice
 
-- pruebas de integración contra API real y base de datos para preview/apply completo
+- pruebas de integración HTTP end-to-end contra API real y base de datos para preview/apply completo
 - parser multipart/file upload si se decide cambiar el contrato actual
 - homologación asistida de productos duplicados o similares
 - vista frontend para preview y confirmación de carga
 - endurecer auditoría de cambios por lote
+
+## Validación manual ya confirmada
+
+Con evidencia real del VPS quedó validado manualmente que:
+- `initial-load/preview` respondió correctamente
+- `initial-load/apply` respondió `202 Accepted` usando preview fresco y token válido
+
+Eso confirma que el flujo técnico preview -> apply ya funciona a nivel API sobre el baseline validado.
