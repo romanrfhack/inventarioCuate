@@ -4,55 +4,81 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RefaccionariaCuate.Api.Contracts.InitialLoad;
 using RefaccionariaCuate.Domain.Entities;
 using RefaccionariaCuate.Infrastructure.Persistence;
+using RefaccionariaCuate.Infrastructure.Services;
 
 namespace RefaccionariaCuate.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "admin")]
 [Route("api/initial-load")]
-public sealed class InitialLoadController(ApplicationDbContext dbContext) : ControllerBase
+public sealed class InitialLoadController(ApplicationDbContext dbContext, InitialInventoryCsvParser csvParser) : ControllerBase
 {
     [HttpPost("preview")]
-    public async Task<IActionResult> Preview(CancellationToken cancellationToken)
+    public async Task<IActionResult> Preview([FromBody] InitialLoadPreviewRequest request, CancellationToken cancellationToken)
     {
         var userId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUserId)
             ? parsedUserId
             : Guid.Empty;
 
+        var parseResult = csvParser.Parse(request.CsvContent);
+        if (!parseResult.IsSuccess)
+        {
+            return BadRequest(new { message = "CSV inválido", errors = parseResult.Errors });
+        }
+
         var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+        var totalRows = parseResult.Rows.Count;
+        var validRows = parseResult.Rows.Count(x => x.RowStatus == "valid");
+        var invalidRows = parseResult.Rows.Count(x => x.RowStatus == "invalid");
+        var warningRows = parseResult.Rows.Count(x => x.RowStatus == "warning");
+        var status = invalidRows == 0 ? "previewed" : "preview_failed";
 
         var load = new InitialInventoryLoad
         {
-            LoadType = "csv_preview_stub",
-            FileName = "inventario_inicial_template.csv",
-            Status = "previewed",
+            LoadType = "manual_csv",
+            FileName = string.IsNullOrWhiteSpace(request.FileName) ? "inventario_inicial.csv" : request.FileName,
+            Status = status,
             UserId = userId,
             ConfirmationToken = confirmationToken,
             SummaryJson = JsonSerializer.Serialize(new
             {
-                rows = 2,
-                valid = 2,
-                warnings = 1,
-                message = "Scaffold listo para conectar parser CSV real en el siguiente slice"
+                rows = totalRows,
+                valid = validRows,
+                invalid = invalidRows,
+                warnings = warningRows
             }),
-            Details = new List<InitialInventoryLoadDetail>
-            {
-                new() { SourceRow = 1, Code = "750100000001", Description = "Balata delantera sedan", InitialStock = 6, Cost = 220, SalePrice = 350, RowStatus = "preview_ok" },
-                new() { SourceRow = 2, Code = "750100000099", Description = "Producto pendiente de homologación", InitialStock = 1, Cost = 10, SalePrice = 15, RowStatus = "preview_warning", ReviewReason = "No existe match automático" }
-            }
+            Details = parseResult.Rows.ToList()
         };
 
         await dbContext.InitialInventoryLoads.AddAsync(load, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return Ok(new { loadId = load.Id, confirmationToken = load.ConfirmationToken, summary = JsonDocument.Parse(load.SummaryJson).RootElement });
+        var response = new InitialLoadPreviewSummaryResponse(
+            load.Id,
+            load.Status,
+            load.ConfirmationToken,
+            totalRows,
+            validRows,
+            invalidRows,
+            warningRows,
+            load.Details
+                .OrderBy(x => x.SourceRow)
+                .Select(x => new InitialLoadPreviewRowResponse(x.SourceRow, x.Code, x.Description, x.InitialStock, x.RowStatus, x.ReviewReason))
+                .ToList());
+
+        return Ok(response);
     }
 
     [HttpPost("apply/{loadId:guid}")]
-    public async Task<IActionResult> Apply(Guid loadId, [FromQuery] string confirmationToken, CancellationToken cancellationToken)
+    public async Task<IActionResult> Apply(Guid loadId, [FromBody] InitialLoadApplyRequest request, CancellationToken cancellationToken)
     {
+        var userId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUserId)
+            ? parsedUserId
+            : Guid.Empty;
+
         var load = await dbContext.InitialInventoryLoads
             .Include(x => x.Details)
             .SingleOrDefaultAsync(x => x.Id == loadId, cancellationToken);
@@ -62,26 +88,125 @@ public sealed class InitialLoadController(ApplicationDbContext dbContext) : Cont
             return NotFound();
         }
 
-        if (!string.Equals(load.ConfirmationToken, confirmationToken, StringComparison.Ordinal))
+        if (!string.Equals(load.ConfirmationToken, request.ConfirmationToken, StringComparison.Ordinal))
         {
             return BadRequest(new { message = "Token de confirmación inválido" });
         }
 
         if (!string.Equals(load.Status, "previewed", StringComparison.Ordinal))
         {
-            return Conflict(new { message = "La carga ya no está en estado previewed y debe regenerarse con un preview fresco" });
+            return Conflict(new { message = "La carga no está en estado válido para apply" });
         }
 
-        load.Status = "ready_for_apply";
+        if (load.Details.Any(x => x.RowStatus == "invalid"))
+        {
+            return Conflict(new { message = "La carga contiene filas inválidas y no puede aplicarse" });
+        }
+
+        var createdProducts = 0;
+        var matchedProducts = 0;
+        var createdBalances = 0;
+        var createdMovements = 0;
+        var warningRows = load.Details.Count(x => x.RowStatus == "warning");
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        foreach (var detail in load.Details.OrderBy(x => x.SourceRow))
+        {
+            Product? product = null;
+            if (!string.IsNullOrWhiteSpace(detail.Code))
+            {
+                product = await dbContext.Products
+                    .Include(x => x.InventoryBalance)
+                    .SingleOrDefaultAsync(x => x.PrimaryCode == detail.Code, cancellationToken);
+            }
+
+            if (product is null)
+            {
+                product = new Product
+                {
+                    InternalKey = $"LOAD-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{detail.SourceRow}",
+                    PrimaryCode = detail.Code,
+                    Description = detail.Description,
+                    Brand = detail.Brand,
+                    CurrentCost = detail.Cost,
+                    CurrentSalePrice = detail.SalePrice,
+                    Unit = detail.Unit,
+                    RequiresReview = string.IsNullOrWhiteSpace(detail.Code) || !detail.Cost.HasValue || !detail.SalePrice.HasValue || string.IsNullOrWhiteSpace(detail.Supplier),
+                    ReviewReason = detail.ReviewReason,
+                    Status = "activo"
+                };
+
+                await dbContext.Products.AddAsync(product, cancellationToken);
+                createdProducts++;
+            }
+            else
+            {
+                matchedProducts++;
+                if (string.IsNullOrWhiteSpace(product.Brand) && !string.IsNullOrWhiteSpace(detail.Brand)) product.Brand = detail.Brand;
+                if (!product.CurrentCost.HasValue && detail.Cost.HasValue) product.CurrentCost = detail.Cost;
+                if (!product.CurrentSalePrice.HasValue && detail.SalePrice.HasValue) product.CurrentSalePrice = detail.SalePrice;
+                if (string.IsNullOrWhiteSpace(product.Unit) && !string.IsNullOrWhiteSpace(detail.Unit)) product.Unit = detail.Unit;
+                product.RequiresReview = product.RequiresReview || detail.RowStatus == "warning";
+                product.ReviewReason = string.Join(";", new[] { product.ReviewReason, detail.ReviewReason }.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            detail.MatchedProductId = product.Id;
+
+            var balance = await dbContext.InventoryBalances.SingleOrDefaultAsync(x => x.ProductId == product.Id, cancellationToken);
+            if (balance is null)
+            {
+                balance = new InventoryBalance
+                {
+                    ProductId = product.Id,
+                    CurrentStock = detail.InitialStock,
+                    Location = detail.Location,
+                    BaseOrigin = $"initial_load:{load.Id}",
+                    RequiresReview = detail.RowStatus == "warning"
+                };
+                await dbContext.InventoryBalances.AddAsync(balance, cancellationToken);
+                createdBalances++;
+            }
+            else
+            {
+                balance.CurrentStock = detail.InitialStock;
+                balance.Location = string.IsNullOrWhiteSpace(balance.Location) ? detail.Location : balance.Location;
+                balance.BaseOrigin = $"initial_load:{load.Id}";
+                balance.RequiresReview = balance.RequiresReview || detail.RowStatus == "warning";
+                balance.UpdatedAt = DateTimeOffset.UtcNow;
+            }
+
+            await dbContext.InventoryMovements.AddAsync(new InventoryMovement
+            {
+                ProductId = product.Id,
+                MovementType = "carga_inicial",
+                Quantity = detail.InitialStock,
+                ResultingStock = detail.InitialStock,
+                SourceType = "initial_load",
+                SourceId = load.Id.ToString(),
+                Reason = $"Carga inicial fila {detail.SourceRow}",
+                UserId = userId
+            }, cancellationToken);
+            createdMovements++;
+        }
+
+        load.Status = "applied";
         load.SummaryJson = JsonSerializer.Serialize(new
         {
-            previous = JsonDocument.Parse(load.SummaryJson).RootElement,
-            applied = false,
-            nextStep = "Conectar parser y transacción real de carga inicial",
-            requiresFreshPreview = false
+            rows = load.Details.Count,
+            createdProducts,
+            matchedProducts,
+            createdBalances,
+            createdMovements,
+            warningRows,
+            appliedAt = DateTimeOffset.UtcNow,
+            appliedBy = userId
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return Accepted(new { message = "Carga marcada para aplicación controlada", loadId = load.Id, status = load.Status });
+        await transaction.CommitAsync(cancellationToken);
+
+        return Accepted(new InitialLoadApplyResponse(load.Id, load.Status, createdProducts, matchedProducts, createdBalances, createdMovements, warningRows));
     }
 }

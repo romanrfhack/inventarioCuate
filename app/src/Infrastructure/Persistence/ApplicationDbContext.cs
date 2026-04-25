@@ -90,6 +90,11 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.ToTable("InitialInventoryLoadDetails");
             entity.Property(x => x.Code).HasMaxLength(64);
             entity.Property(x => x.Description).HasMaxLength(256);
+            entity.Property(x => x.Brand).HasMaxLength(128);
+            entity.Property(x => x.Supplier).HasMaxLength(128);
+            entity.Property(x => x.Unit).HasMaxLength(32);
+            entity.Property(x => x.Location).HasMaxLength(128);
+            entity.Property(x => x.Notes).HasMaxLength(512);
             entity.Property(x => x.RowStatus).HasMaxLength(32);
             entity.Property(x => x.InitialStock).HasColumnType("decimal(18,2)");
             entity.Property(x => x.Cost).HasColumnType("decimal(18,2)");

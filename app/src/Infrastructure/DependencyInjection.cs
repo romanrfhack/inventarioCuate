@@ -5,6 +5,7 @@ using RefaccionariaCuate.Application.Abstractions.Auth;
 using RefaccionariaCuate.Infrastructure.Authentication;
 using RefaccionariaCuate.Infrastructure.Persistence;
 using RefaccionariaCuate.Infrastructure.Seed;
+using RefaccionariaCuate.Infrastructure.Services;
 
 namespace RefaccionariaCuate.Infrastructure;
 
@@ -18,6 +19,7 @@ public static class DependencyInjection
 
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<DemoSeedService>();
+        services.AddScoped<InitialInventoryCsvParser>();
 
         return services;
     }
