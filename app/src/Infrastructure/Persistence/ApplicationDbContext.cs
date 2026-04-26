@@ -16,6 +16,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<SaleDetail> SaleDetails => Set<SaleDetail>();
     public DbSet<DemoResetAudit> DemoResetAudits => Set<DemoResetAudit>();
+    public DbSet<SupplierCatalogImportBatch> SupplierCatalogImportBatches => Set<SupplierCatalogImportBatch>();
+    public DbSet<SupplierCatalogImportDetail> SupplierCatalogImportDetails => Set<SupplierCatalogImportDetail>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -132,6 +134,36 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.ToTable("DemoResetAudits");
             entity.Property(x => x.Environment).HasMaxLength(32);
             entity.Property(x => x.Reason).HasMaxLength(256);
+        });
+
+        modelBuilder.Entity<SupplierCatalogImportBatch>(entity =>
+        {
+            entity.ToTable("SupplierCatalogImportBatches");
+            entity.Property(x => x.SupplierName).HasMaxLength(128);
+            entity.Property(x => x.FileName).HasMaxLength(256);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.Property(x => x.ConfirmationToken).HasMaxLength(64);
+            entity.HasMany(x => x.Details)
+                .WithOne(x => x.SupplierCatalogImportBatch)
+                .HasForeignKey(x => x.SupplierCatalogImportBatchId);
+        });
+
+        modelBuilder.Entity<SupplierCatalogImportDetail>(entity =>
+        {
+            entity.ToTable("SupplierCatalogImportDetails");
+            entity.Property(x => x.SupplierProductCode).HasMaxLength(64);
+            entity.Property(x => x.Description).HasMaxLength(256);
+            entity.Property(x => x.Brand).HasMaxLength(128);
+            entity.Property(x => x.Cost).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.SuggestedSalePrice).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.Unit).HasMaxLength(32);
+            entity.Property(x => x.MatchType).HasMaxLength(64);
+            entity.Property(x => x.ActionType).HasMaxLength(32);
+            entity.Property(x => x.RowStatus).HasMaxLength(32);
+            entity.Property(x => x.ReviewReason).HasMaxLength(512);
+            entity.Property(x => x.ProposedCost).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.ProposedSalePrice).HasColumnType("decimal(18,2)");
+            entity.HasIndex(x => new { x.SupplierCatalogImportBatchId, x.SourceRow }).IsUnique();
         });
     }
 }

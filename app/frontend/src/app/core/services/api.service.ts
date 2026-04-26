@@ -6,6 +6,7 @@ import { InventoryMovementDetail, InventoryMovementFilters, InventoryMovementLis
 import { InitialLoadApplyResponse, InitialLoadListItem, InitialLoadPreviewSummary } from '../models/initial-load.models';
 import { CancelSaleResponse, QuickSaleRequestItem, QuickSaleResponse, SaleDetail, SaleListItem, SalesFilter } from '../models/sales.models';
 import { OperationsReport } from '../models/reports.models';
+import { SupplierCatalogImportApplyResponse, SupplierCatalogImportListItem, SupplierCatalogImportPreview } from '../models/supplier-catalog.models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -119,5 +120,21 @@ export class ApiService {
 
   getOperationsReport(): Observable<OperationsReport> {
     return this.http.get<OperationsReport>(`${this.apiBase}/reports/operations`);
+  }
+
+  previewSupplierCatalogImport(supplierName: string, fileName: string, csvContent: string): Observable<SupplierCatalogImportPreview> {
+    return this.http.post<SupplierCatalogImportPreview>(`${this.apiBase}/supplier-catalog-imports/preview`, { supplierName, fileName, csvContent });
+  }
+
+  applySupplierCatalogImport(batchId: string, confirmationToken: string): Observable<SupplierCatalogImportApplyResponse> {
+    return this.http.post<SupplierCatalogImportApplyResponse>(`${this.apiBase}/supplier-catalog-imports/${batchId}/apply`, { confirmationToken });
+  }
+
+  getSupplierCatalogImports(): Observable<SupplierCatalogImportListItem[]> {
+    return this.http.get<SupplierCatalogImportListItem[]>(`${this.apiBase}/supplier-catalog-imports`);
+  }
+
+  getSupplierCatalogImportDetail(batchId: string): Observable<SupplierCatalogImportPreview> {
+    return this.http.get<SupplierCatalogImportPreview>(`${this.apiBase}/supplier-catalog-imports/${batchId}`);
   }
 }

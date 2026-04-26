@@ -15,6 +15,7 @@ export const routes: Routes = [
       { path: 'reportes', loadComponent: () => import('./features/reports/operations-reports-page.component').then(m => m.OperationsReportsPageComponent) },
       { path: 'ventas', loadComponent: () => import('./features/sales/quick-sale-page.component').then(m => m.QuickSalePageComponent) },
       { path: 'carga-inicial', loadComponent: () => import('./features/initial-load/initial-load-page.component').then(m => m.InitialLoadPageComponent) },
+      { path: 'catalogo-proveedor', loadComponent: () => import('./features/supplier-catalog/supplier-catalog-page.component').then(m => m.SupplierCatalogPageComponent) },
       { path: 'demo-admin', loadComponent: () => import('./features/demo-admin/demo-admin-page.component').then(m => m.DemoAdminPageComponent) }
     ]
   },
