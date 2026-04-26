@@ -6,4 +6,4 @@ public sealed record SupplierCatalogImportApplyResponse(
     int UpdatedProducts,
     int CreatedProducts,
     int SkippedRows,
-    int ConflictRows);
+    int RequiereRevisionRows);

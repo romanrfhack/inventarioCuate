@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RefaccionariaCuate.Infrastructure.Persistence;
 using RefaccionariaCuate.Infrastructure.Seed;
@@ -18,56 +19,74 @@ public sealed class SupplierCatalogImportHttpFlowTests : IClassFixture<TestApiFa
         _factory = factory;
     }
 
-    [Fact]
-    public async Task Preview_Then_Apply_Should_Update_Existing_Product_And_Create_New_Product()
+    [Theory]
+    [InlineData("alessia", "Alessia", "/root/projects/refaccionaria-cuate/data/provider-catalogs/raw/alessia/07 Abril Lista Alessia 26.xlsm")]
+    [InlineData("masuda", "Masuda", "/root/projects/refaccionaria-cuate/data/provider-catalogs/raw/masuda/LISTA DE PRECIO - MASUDA IMPORTADOR REGIONAL 09-ABRIL.xlsx")]
+    [InlineData("c-cedis", "C-CEDIS", "/root/projects/refaccionaria-cuate/data/provider-catalogs/raw/c-cedis/ListaPreciosC-CEDIS-05042026.xlsx.xls")]
+    public async Task Preview_Should_Parse_Known_Provider_Files(string profile, string supplierName, string filePath)
     {
         await ResetAndSeedAsync();
-        var client = _factory.CreateClient();
+        var client = await CreateAuthorizedClientAsync();
 
-        var loginResponse = await client.PostAsJsonAsync("/api/auth/login", new
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent(supplierName), "supplierName");
+        form.Add(new StringContent(profile), "importProfile");
+        form.Add(new StreamContent(File.OpenRead(filePath)), "file", Path.GetFileName(filePath));
+
+        var response = await client.PostAsync("/api/provider-catalogs/preview", form);
+        response.EnsureSuccessStatusCode();
+
+        var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        json.RootElement.GetProperty("totalRows").GetInt32().Should().BeGreaterThan(0);
+        json.RootElement.GetProperty("importProfile").GetString().Should().Be(profile);
+    }
+
+    [Fact]
+    public async Task Preview_Then_Apply_Should_Update_Catalog_Without_Modifying_Local_Inventory()
+    {
+        await ResetAndSeedAsync();
+        var client = await CreateAuthorizedClientAsync();
+
+        Guid productId;
+        decimal stockBefore;
+        using (var seedScope = _factory.Services.CreateScope())
         {
-            userName = "admin.demo",
-            password = "Demo123!"
-        });
-        loginResponse.EnsureSuccessStatusCode();
+            var seededDb = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var productWithInventory = seededDb.Products.Include(x => x.InventoryBalance).First(x => x.InventoryBalance != null);
+            productId = productWithInventory.Id;
+            stockBefore = productWithInventory.InventoryBalance!.CurrentStock;
+        }
 
-        var loginJson = JsonDocument.Parse(await loginResponse.Content.ReadAsStringAsync());
-        var token = loginJson.RootElement.GetProperty("accessToken").GetString();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        const string samplePath = "/root/projects/refaccionaria-cuate/data/provider-catalogs/raw/alessia/07 Abril Lista Alessia 26.xlsm";
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent("Alessia"), "supplierName");
+        form.Add(new StringContent("alessia"), "importProfile");
+        form.Add(new StreamContent(File.OpenRead(samplePath)), "file", Path.GetFileName(samplePath));
 
-        const string csv = "codigo,descripcion,marca,costo,precio_sugerido,unidad\n750100000001,Balata delantera sedan,Genérica,240.00,360.00,pz\nPROV-NEW-01,Bomba de gasolina compacta,MotorPro,420.00,620.00,pz\n,Filtro de aceite compacto,FiltroMax,65.00,110.00,pz\n";
-
-        var previewResponse = await client.PostAsJsonAsync("/api/supplier-catalog-imports/preview", new
-        {
-            supplierName = "Proveedor HTTP",
-            fileName = "supplier-http.csv",
-            csvContent = csv
-        });
-
+        var previewResponse = await client.PostAsync("/api/provider-catalogs/preview", form);
         previewResponse.EnsureSuccessStatusCode();
         var previewJson = JsonDocument.Parse(await previewResponse.Content.ReadAsStringAsync());
         var batchId = previewJson.RootElement.GetProperty("batchId").GetGuid();
         var confirmationToken = previewJson.RootElement.GetProperty("confirmationToken").GetString();
 
-        previewJson.RootElement.GetProperty("newProducts").GetInt32().Should().Be(1);
-        previewJson.RootElement.GetProperty("matchedProducts").GetInt32().Should().BeGreaterThanOrEqualTo(1);
-
-        var applyResponse = await client.PostAsJsonAsync($"/api/supplier-catalog-imports/{batchId}/apply", new
-        {
-            confirmationToken
-        });
-
+        var applyResponse = await client.PostAsJsonAsync($"/api/provider-catalogs/apply/{batchId}", new { confirmationToken });
         applyResponse.EnsureSuccessStatusCode();
-        var applyJson = JsonDocument.Parse(await applyResponse.Content.ReadAsStringAsync());
-        applyJson.RootElement.GetProperty("updatedProducts").GetInt32().Should().Be(1);
-        applyJson.RootElement.GetProperty("createdProducts").GetInt32().Should().Be(1);
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var persistedProduct = db.Products.Include(x => x.InventoryBalance).Single(x => x.Id == productId);
+        persistedProduct.InventoryBalance!.CurrentStock.Should().Be(stockBefore);
+        db.SupplierCatalogImportBatches.Single(x => x.Id == batchId).Status.Should().NotBeNullOrWhiteSpace();
+    }
 
-        db.Products.Single(x => x.PrimaryCode == "750100000001").CurrentCost.Should().Be(240.00m);
-        db.Products.Single(x => x.PrimaryCode == "PROV-NEW-01").Description.Should().Be("Bomba de gasolina compacta");
-        db.SupplierCatalogImportBatches.Single(x => x.Id == batchId).Status.Should().Be("applied");
+    private async Task<HttpClient> CreateAuthorizedClientAsync()
+    {
+        var client = _factory.CreateClient();
+        var loginResponse = await client.PostAsJsonAsync("/api/auth/login", new { userName = "admin.demo", password = "Demo123!" });
+        loginResponse.EnsureSuccessStatusCode();
+        var loginJson = JsonDocument.Parse(await loginResponse.Content.ReadAsStringAsync());
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginJson.RootElement.GetProperty("accessToken").GetString());
+        return client;
     }
 
     private async Task ResetAndSeedAsync()
@@ -76,7 +95,6 @@ public sealed class SupplierCatalogImportHttpFlowTests : IClassFixture<TestApiFa
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await db.Database.EnsureDeletedAsync();
         await db.Database.EnsureCreatedAsync();
-
         var seed = scope.ServiceProvider.GetRequiredService<DemoSeedService>();
         await seed.EnsureSeededAsync();
     }

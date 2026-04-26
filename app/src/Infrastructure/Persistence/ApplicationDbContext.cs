@@ -34,6 +34,15 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(x => x.CurrentCost).HasPrecision(18, 2);
             entity.Property(x => x.CurrentSalePrice).HasPrecision(18, 2);
             entity.Property(x => x.Unit).HasMaxLength(16);
+            entity.Property(x => x.PiecesPerBox).HasPrecision(18, 2);
+            entity.Property(x => x.Compatibility).HasMaxLength(512);
+            entity.Property(x => x.Line).HasMaxLength(128);
+            entity.Property(x => x.Family).HasMaxLength(128);
+            entity.Property(x => x.SubFamily).HasMaxLength(128);
+            entity.Property(x => x.Category).HasMaxLength(128);
+            entity.Property(x => x.SupplierName).HasMaxLength(128);
+            entity.Property(x => x.SupplierAvailability).HasPrecision(18, 2);
+            entity.Property(x => x.SupplierStockText).HasMaxLength(128);
             entity.Property(x => x.Status).HasMaxLength(32);
             entity.HasOne(x => x.InventoryBalance)
                 .WithOne(x => x.Product)
@@ -140,6 +149,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         {
             entity.ToTable("SupplierCatalogImportBatches");
             entity.Property(x => x.SupplierName).HasMaxLength(128);
+            entity.Property(x => x.ImportProfile).HasMaxLength(64);
             entity.Property(x => x.FileName).HasMaxLength(256);
             entity.Property(x => x.Status).HasMaxLength(32);
             entity.Property(x => x.ConfirmationToken).HasMaxLength(64);
@@ -151,12 +161,25 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         modelBuilder.Entity<SupplierCatalogImportDetail>(entity =>
         {
             entity.ToTable("SupplierCatalogImportDetails");
+            entity.Property(x => x.SourceSheet).HasMaxLength(128);
+            entity.Property(x => x.SupplierName).HasMaxLength(128);
+            entity.Property(x => x.ImportProfile).HasMaxLength(64);
             entity.Property(x => x.SupplierProductCode).HasMaxLength(64);
             entity.Property(x => x.Description).HasMaxLength(256);
             entity.Property(x => x.Brand).HasMaxLength(128);
+            entity.Property(x => x.Unit).HasMaxLength(32);
+            entity.Property(x => x.PiecesPerBox).HasPrecision(18, 2);
+            entity.Property(x => x.Compatibility).HasMaxLength(512);
+            entity.Property(x => x.Line).HasMaxLength(128);
+            entity.Property(x => x.Family).HasMaxLength(128);
+            entity.Property(x => x.SubFamily).HasMaxLength(128);
+            entity.Property(x => x.Category).HasMaxLength(128);
             entity.Property(x => x.Cost).HasColumnType("decimal(18,2)");
             entity.Property(x => x.SuggestedSalePrice).HasColumnType("decimal(18,2)");
-            entity.Property(x => x.Unit).HasMaxLength(32);
+            entity.Property(x => x.PriceLevelsJson).HasColumnType("TEXT");
+            entity.Property(x => x.SupplierAvailability).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.SupplierStockText).HasMaxLength(128);
+            entity.Property(x => x.RevisionReason).HasMaxLength(512);
             entity.Property(x => x.MatchType).HasMaxLength(64);
             entity.Property(x => x.ActionType).HasMaxLength(32);
             entity.Property(x => x.RowStatus).HasMaxLength(32);

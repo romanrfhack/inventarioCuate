@@ -1,10 +1,30 @@
+export interface SupplierCatalogProfile {
+  key: string;
+  supplierName: string;
+  preferredSheet: string;
+  candidateSheets: string[];
+}
+
 export interface SupplierCatalogImportRow {
   sourceRow: number;
+  sourceSheet: string;
   supplierProductCode?: string | null;
   description: string;
   brand?: string | null;
+  unit?: string | null;
+  piecesPerBox?: number | null;
+  compatibility?: string | null;
+  line?: string | null;
+  family?: string | null;
+  subFamily?: string | null;
+  category?: string | null;
   cost?: number | null;
   suggestedSalePrice?: number | null;
+  priceLevelsJson?: string | null;
+  supplierAvailability?: number | null;
+  supplierStockText?: string | null;
+  requiresRevision: boolean;
+  revisionReason?: string | null;
   matchType: string;
   actionType: string;
   rowStatus: string;
@@ -18,14 +38,16 @@ export interface SupplierCatalogImportRow {
 export interface SupplierCatalogImportPreview {
   batchId: string;
   supplierName: string;
+  importProfile: string;
+  fileName: string;
   status: string;
   confirmationToken: string;
   totalRows: number;
-  readyRows: number;
-  warningRows: number;
-  conflictRows: number;
-  newProducts: number;
-  matchedProducts: number;
+  matchCodigoRows: number;
+  productoNuevoRows: number;
+  datoIncompletoRows: number;
+  requiereRevisionRows: number;
+  appliedRows: number;
   rows: SupplierCatalogImportRow[];
 }
 
@@ -35,18 +57,20 @@ export interface SupplierCatalogImportApplyResponse {
   updatedProducts: number;
   createdProducts: number;
   skippedRows: number;
-  conflictRows: number;
+  requiereRevisionRows: number;
 }
 
 export interface SupplierCatalogImportListItem {
   batchId: string;
   supplierName: string;
+  importProfile: string;
   fileName: string;
   status: string;
   createdAt: string;
   totalRows: number;
-  readyRows: number;
-  warningRows: number;
-  conflictRows: number;
+  matchCodigoRows: number;
+  productoNuevoRows: number;
+  datoIncompletoRows: number;
+  requiereRevisionRows: number;
   appliedRows: number;
 }

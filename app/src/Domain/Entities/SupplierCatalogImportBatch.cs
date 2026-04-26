@@ -5,6 +5,7 @@ namespace RefaccionariaCuate.Domain.Entities;
 public sealed class SupplierCatalogImportBatch : Entity
 {
     public string SupplierName { get; set; } = string.Empty;
+    public string ImportProfile { get; set; } = string.Empty;
     public string FileName { get; set; } = string.Empty;
     public string Status { get; set; } = "pending";
     public string SummaryJson { get; set; } = "{}";

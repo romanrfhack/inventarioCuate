@@ -1,120 +1,141 @@
 using Microsoft.EntityFrameworkCore;
+using RefaccionariaCuate.Domain.Entities;
 using RefaccionariaCuate.Infrastructure.Persistence;
 
 namespace RefaccionariaCuate.Infrastructure.Services;
 
 public sealed class SupplierCatalogMatcher(ApplicationDbContext dbContext)
 {
-    public async Task MatchAsync(IEnumerable<Domain.Entities.SupplierCatalogImportDetail> details, CancellationToken cancellationToken)
+    public async Task MatchAsync(IEnumerable<SupplierCatalogImportDetail> details, CancellationToken cancellationToken)
     {
         var products = await dbContext.Products.AsNoTracking().ToListAsync(cancellationToken);
 
         foreach (var detail in details)
         {
-            if (string.Equals(detail.RowStatus, "invalid", StringComparison.Ordinal))
+            var reasons = SplitReasons(detail.RevisionReason);
+            var normalizedCode = Normalize(detail.SupplierProductCode);
+            var normalizedDescription = Normalize(detail.Description);
+
+            if (string.IsNullOrWhiteSpace(detail.Description))
             {
-                detail.MatchType = "invalid";
-                detail.ActionType = "review";
+                Mark(detail, "dato_incompleto", "review", "requiere_revision", [.. reasons, "descripcion_obligatoria"]);
                 continue;
             }
 
-            var reasons = SplitReasons(detail.ReviewReason);
-            var codeMatches = !string.IsNullOrWhiteSpace(detail.SupplierProductCode)
-                ? products.Where(x => x.PrimaryCode == detail.SupplierProductCode).ToList()
-                : [];
+            var codeMatches = string.IsNullOrWhiteSpace(normalizedCode)
+                ? []
+                : products.Where(x => Normalize(x.PrimaryCode) == normalizedCode).ToList();
+            var descriptionMatches = products.Where(x => Normalize(x.Description) == normalizedDescription).ToList();
 
-            var normalizedDescription = Normalize(detail.Description);
-            var normalizedBrand = Normalize(detail.Brand);
-            var descriptionMatches = products.Where(x =>
-                    Normalize(x.Description) == normalizedDescription &&
-                    (string.IsNullOrWhiteSpace(normalizedBrand) || Normalize(x.Brand) == normalizedBrand))
-                .ToList();
+            if (string.IsNullOrWhiteSpace(normalizedCode))
+            {
+                detail.RequiresRevision = true;
+                reasons.Add("sin_codigo");
+            }
 
             if (codeMatches.Count > 1)
             {
-                detail.MatchType = "ambiguous_code";
-                detail.ActionType = "review";
-                detail.RowStatus = "conflict";
-                reasons.Add("codigo_coincide_con_multiples_productos");
+                Mark(detail, "conflicto_codigo", "review", "requiere_revision", [.. reasons, "codigo_repetido_en_catalogo_local"]);
+                continue;
             }
-            else if (codeMatches.Count == 1)
+
+            if (codeMatches.Count == 1)
             {
                 var product = codeMatches[0];
-                if (descriptionMatches.Count > 0 && descriptionMatches.All(x => x.Id != product.Id))
-                {
-                    detail.MatchType = "conflict";
-                    detail.ActionType = "review";
-                    detail.RowStatus = "conflict";
-                    reasons.Add("codigo_y_descripcion_apuntan_a_productos_distintos");
-                }
-                else
-                {
-                    detail.MatchType = "existing_by_code";
-                    detail.ActionType = HasAnyUpdate(detail, product) ? "update" : "noop";
-                    detail.RowStatus = detail.ActionType == "noop" ? "warning" : "ready";
-                    detail.MatchedProductId = product.Id;
-                    detail.ProposedCost = detail.Cost ?? product.CurrentCost;
-                    detail.ProposedSalePrice = detail.SuggestedSalePrice ?? product.CurrentSalePrice;
-                    if (detail.ActionType == "noop")
-                    {
-                        reasons.Add("sin_cambios_en_costo_o_precio");
-                    }
-                }
-            }
-            else if (descriptionMatches.Count > 1)
-            {
-                detail.MatchType = "ambiguous_description";
-                detail.ActionType = "review";
-                detail.RowStatus = "conflict";
-                reasons.Add("descripcion_ambigua");
-            }
-            else if (descriptionMatches.Count == 1)
-            {
-                var product = descriptionMatches[0];
-                detail.MatchType = "existing_by_description";
-                detail.ActionType = HasAnyUpdate(detail, product) ? "update" : "noop";
-                detail.RowStatus = detail.ActionType == "noop" ? "warning" : "warning";
                 detail.MatchedProductId = product.Id;
                 detail.ProposedCost = detail.Cost ?? product.CurrentCost;
                 detail.ProposedSalePrice = detail.SuggestedSalePrice ?? product.CurrentSalePrice;
-                reasons.Add("coincidencia_por_descripcion_requiere_revision");
-                if (detail.ActionType == "noop")
+
+                if (descriptionMatches.Count == 1 && descriptionMatches[0].Id != product.Id)
                 {
-                    reasons.Add("sin_cambios_en_costo_o_precio");
+                    Mark(detail, "conflicto_codigo", "review", "requiere_revision", [.. reasons, "codigo_y_descripcion_apuntan_a_productos_distintos"]);
+                    continue;
                 }
-            }
-            else
-            {
-                detail.MatchType = "new_product";
-                detail.ActionType = "create";
-                detail.RowStatus = string.Equals(detail.RowStatus, "warning", StringComparison.Ordinal) ? "warning" : "ready";
-                detail.ProposedCost = detail.Cost;
-                detail.ProposedSalePrice = detail.SuggestedSalePrice;
-                reasons.Add("producto_nuevo");
+
+                detail.ActionType = HasCatalogChanges(detail, product) ? "update" : "noop";
+                detail.MatchType = "match_codigo";
+                detail.RowStatus = detail.RequiresRevision ? "requiere_revision" : "match_codigo";
+                detail.ReviewReason = JoinReasons([.. reasons, detail.RequiresRevision ? "match_claro_con_revision_manual" : null, detail.ActionType == "noop" ? "sin_cambios" : null]);
+                detail.ApplySelected = !detail.RequiresRevision && detail.ActionType == "update";
+                continue;
             }
 
-            detail.ReviewReason = reasons.Count == 0 ? null : string.Join(";", reasons.Distinct());
-            detail.ApplySelected = detail.RowStatus is "ready" or "warning" && detail.ActionType is "update" or "create";
+            if (descriptionMatches.Count > 1)
+            {
+                Mark(detail, "requiere_revision", "review", "requiere_revision", [.. reasons, "descripcion_ambigua"]);
+                continue;
+            }
+
+            if (!CanCreate(detail))
+            {
+                Mark(detail, "dato_incompleto", "review", "dato_incompleto", [.. reasons, "faltan_datos_para_alta_controlada"]);
+                continue;
+            }
+
+            detail.MatchType = "producto_nuevo";
+            detail.ActionType = detail.RequiresRevision ? "review" : "create";
+            detail.RowStatus = detail.RequiresRevision ? "requiere_revision" : "producto_nuevo";
+            detail.ProposedCost = detail.Cost;
+            detail.ProposedSalePrice = detail.SuggestedSalePrice;
+            detail.ReviewReason = JoinReasons([.. reasons, "producto_nuevo"]);
+            detail.ApplySelected = !detail.RequiresRevision;
         }
     }
 
-    private static bool HasAnyUpdate(Domain.Entities.SupplierCatalogImportDetail detail, Domain.Entities.Product product)
+    private static bool CanCreate(SupplierCatalogImportDetail detail)
     {
-        return (detail.Cost.HasValue && detail.Cost != product.CurrentCost)
-            || (detail.SuggestedSalePrice.HasValue && detail.SuggestedSalePrice != product.CurrentSalePrice);
+        return !string.IsNullOrWhiteSpace(detail.SupplierProductCode)
+            && !string.IsNullOrWhiteSpace(detail.Description)
+            && (detail.Cost.HasValue || detail.SuggestedSalePrice.HasValue);
     }
 
-    private static string Normalize(string? value)
+    private static bool HasCatalogChanges(SupplierCatalogImportDetail detail, Product product)
     {
-        return string.IsNullOrWhiteSpace(value)
-            ? string.Empty
-            : value.Trim().ToUpperInvariant();
+        return detail.Cost != product.CurrentCost
+            || detail.SuggestedSalePrice != product.CurrentSalePrice
+            || Normalize(detail.Brand) != Normalize(product.Brand)
+            || Normalize(detail.Unit) != Normalize(product.Unit)
+            || detail.PiecesPerBox != product.PiecesPerBox
+            || Normalize(detail.Compatibility) != Normalize(product.Compatibility)
+            || Normalize(detail.Line) != Normalize(product.Line)
+            || Normalize(detail.Family) != Normalize(product.Family)
+            || Normalize(detail.SubFamily) != Normalize(product.SubFamily)
+            || Normalize(detail.Category) != Normalize(product.Category)
+            || Normalize(detail.SupplierName) != Normalize(product.SupplierName)
+            || detail.SupplierAvailability != product.SupplierAvailability
+            || Normalize(detail.SupplierStockText) != Normalize(product.SupplierStockText);
+    }
+
+    private static void Mark(SupplierCatalogImportDetail detail, string matchType, string actionType, string rowStatus, List<string> reasons)
+    {
+        detail.MatchType = matchType;
+        detail.ActionType = actionType;
+        detail.RowStatus = rowStatus;
+        detail.ApplySelected = false;
+        detail.RequiresRevision = true;
+        detail.ReviewReason = JoinReasons(reasons);
     }
 
     private static List<string> SplitReasons(string? reasons)
     {
         return string.IsNullOrWhiteSpace(reasons)
             ? []
-            : reasons.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            : reasons.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct().ToList();
+    }
+
+    private static string? JoinReasons(IEnumerable<string?> reasons)
+    {
+        var clean = reasons.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim()).Distinct().ToList();
+        return clean.Count == 0 ? null : string.Join(';', clean);
+    }
+
+    private static string? JoinReasons(params string?[] reasons)
+    {
+        return JoinReasons(reasons.AsEnumerable());
+    }
+
+    private static string Normalize(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToUpperInvariant();
     }
 }
