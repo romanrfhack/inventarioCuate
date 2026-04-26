@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ProductItem } from '../models/catalog.models';
-import { InventoryMovementResult, InventorySummaryItem, RegisterInventoryAdjustmentRequest, RegisterInventoryEntryRequest } from '../models/inventory.models';
+import { InventoryMovementDetail, InventoryMovementFilters, InventoryMovementListItem, InventoryMovementResult, InventorySummaryItem, RegisterInventoryAdjustmentRequest, RegisterInventoryEntryRequest } from '../models/inventory.models';
 import { InitialLoadApplyResponse, InitialLoadListItem, InitialLoadPreviewSummary } from '../models/initial-load.models';
 import { CancelSaleResponse, QuickSaleRequestItem, QuickSaleResponse, SaleDetail, SaleListItem, SalesFilter } from '../models/sales.models';
 import { OperationsReport } from '../models/reports.models';
@@ -27,6 +27,36 @@ export class ApiService {
 
   registerInventoryAdjustment(request: RegisterInventoryAdjustmentRequest): Observable<InventoryMovementResult> {
     return this.http.post<InventoryMovementResult>(`${this.apiBase}/inventory/adjustments`, request);
+  }
+
+  getInventoryMovements(filters?: InventoryMovementFilters): Observable<InventoryMovementListItem[]> {
+    let params = new HttpParams();
+
+    if (filters?.productId?.trim()) {
+      params = params.set('productId', filters.productId.trim());
+    }
+
+    if (filters?.movementType?.trim()) {
+      params = params.set('movementType', filters.movementType.trim());
+    }
+
+    if (filters?.reason?.trim()) {
+      params = params.set('reason', filters.reason.trim());
+    }
+
+    if (filters?.dateFrom?.trim()) {
+      params = params.set('dateFrom', filters.dateFrom.trim());
+    }
+
+    if (filters?.dateTo?.trim()) {
+      params = params.set('dateTo', filters.dateTo.trim());
+    }
+
+    return this.http.get<InventoryMovementListItem[]>(`${this.apiBase}/inventory/movements`, { params });
+  }
+
+  getInventoryMovementDetail(movementId: string): Observable<InventoryMovementDetail> {
+    return this.http.get<InventoryMovementDetail>(`${this.apiBase}/inventory/movements/${movementId}`);
   }
 
   getDemoStatus() {

@@ -27,3 +27,29 @@ export interface InventoryMovementResult {
   reason: string;
   createdAt: string;
 }
+
+export interface InventoryMovementFilters {
+  productId?: string;
+  movementType?: string;
+  reason?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface InventoryMovementListItem {
+  movementId: string;
+  productId: string;
+  description: string;
+  movementType: string;
+  quantity: number;
+  resultingStock?: number | null;
+  reason?: string | null;
+  sourceType: string;
+  sourceId?: string | null;
+  createdAt: string;
+}
+
+export interface InventoryMovementDetail extends InventoryMovementListItem {
+  userId?: string | null;
+  shiftId?: string | null;
+}

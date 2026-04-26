@@ -27,6 +27,83 @@ public sealed class InventoryController(ApplicationDbContext dbContext) : Contro
         return Ok(response);
     }
 
+    [HttpGet("movements")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyCollection<InventoryMovementListItemResponse>>> GetMovements(
+        [FromQuery] Guid? productId,
+        [FromQuery] string? movementType,
+        [FromQuery] string? reason,
+        [FromQuery] DateOnly? dateFrom,
+        [FromQuery] DateOnly? dateTo,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.InventoryMovements
+            .AsNoTracking()
+            .Include(x => x.Product)
+            .AsQueryable();
+
+        if (productId.HasValue && productId.Value != Guid.Empty)
+        {
+            query = query.Where(x => x.ProductId == productId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(movementType))
+        {
+            var normalizedType = movementType.Trim().ToLowerInvariant();
+            query = query.Where(x => x.MovementType == normalizedType);
+        }
+
+        if (!string.IsNullOrWhiteSpace(reason))
+        {
+            var normalizedReason = reason.Trim();
+            query = query.Where(x => x.Reason != null && EF.Functions.Like(x.Reason, $"%{normalizedReason}%"));
+        }
+
+        var movements = await query
+            .ToListAsync(cancellationToken);
+
+        movements = movements
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(200)
+            .ToList();
+
+        if (dateFrom.HasValue)
+        {
+            movements = movements
+                .Where(x => DateOnly.FromDateTime(x.CreatedAt.UtcDateTime) >= dateFrom.Value)
+                .ToList();
+        }
+
+        if (dateTo.HasValue)
+        {
+            movements = movements
+                .Where(x => DateOnly.FromDateTime(x.CreatedAt.UtcDateTime) <= dateTo.Value)
+                .ToList();
+        }
+
+        return Ok(movements
+            .Select(MapMovementListItem)
+            .ToList());
+    }
+
+    [HttpGet("movements/{movementId:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<InventoryMovementDetailResponse>> GetMovementDetail(Guid movementId, CancellationToken cancellationToken)
+    {
+        var movement = await dbContext.InventoryMovements
+            .AsNoTracking()
+            .Include(x => x.Product)
+            .SingleOrDefaultAsync(x => x.Id == movementId, cancellationToken);
+
+        if (movement is null)
+        {
+            return NotFound(new { code = "404_MOVEMENT_NOT_FOUND", message = "El movimiento no existe." });
+        }
+
+        return Ok(MapMovementDetail(movement));
+    }
+
     [HttpPost("entries")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -162,5 +239,37 @@ public sealed class InventoryController(ApplicationDbContext dbContext) : Contro
     {
         var raw = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
         return Guid.TryParse(raw, out var userId) ? userId : null;
+    }
+
+    private static InventoryMovementListItemResponse MapMovementListItem(InventoryMovement movement)
+    {
+        return new InventoryMovementListItemResponse(
+            movement.Id,
+            movement.ProductId,
+            movement.Product.Description,
+            movement.MovementType,
+            movement.Quantity,
+            movement.ResultingStock,
+            movement.Reason,
+            movement.SourceType,
+            movement.SourceId,
+            movement.CreatedAt);
+    }
+
+    private static InventoryMovementDetailResponse MapMovementDetail(InventoryMovement movement)
+    {
+        return new InventoryMovementDetailResponse(
+            movement.Id,
+            movement.ProductId,
+            movement.Product.Description,
+            movement.MovementType,
+            movement.Quantity,
+            movement.ResultingStock,
+            movement.Reason,
+            movement.SourceType,
+            movement.SourceId,
+            movement.UserId,
+            movement.ShiftId,
+            movement.CreatedAt);
     }
 }
