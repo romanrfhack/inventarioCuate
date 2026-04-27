@@ -16,7 +16,7 @@ namespace RefaccionariaCuate.Api.Controllers;
 [Route("api/provider-catalogs")]
 public sealed class SupplierCatalogImportsController(
     ApplicationDbContext dbContext,
-    SupplierCatalogCsvParser parser,
+    SupplierCatalogSpreadsheetParser parser,
     SupplierCatalogMatcher matcher) : ControllerBase
 {
     [HttpGet]
@@ -44,7 +44,7 @@ public sealed class SupplierCatalogImportsController(
 
     [HttpGet("profiles")]
     [AllowAnonymous]
-    public ActionResult<IReadOnlyCollection<SupplierCatalogCsvParser.ImportProfileDescriptor>> GetProfiles()
+    public ActionResult<IReadOnlyCollection<SupplierCatalogSpreadsheetParser.ImportProfileDescriptor>> GetProfiles()
     {
         return Ok(parser.GetProfiles());
     }
@@ -138,15 +138,20 @@ public sealed class SupplierCatalogImportsController(
 
         foreach (var detail in actionableRows)
         {
+            Product? product = null;
+
             if (detail.ActionType == "update" && detail.MatchedProductId.HasValue)
             {
-                var product = await dbContext.Products.Include(x => x.InventoryBalance).SingleAsync(x => x.Id == detail.MatchedProductId.Value, cancellationToken);
+                product = await dbContext.Products
+                    .Include(x => x.InventoryBalance)
+                    .SingleAsync(x => x.Id == detail.MatchedProductId.Value, cancellationToken);
+
                 ApplyCatalogFields(product, detail);
                 updatedProducts++;
             }
             else if (detail.ActionType == "create")
             {
-                var product = new Product
+                product = new Product
                 {
                     InternalKey = $"SUP-{batch.ImportProfile.ToUpperInvariant()}-{detail.SourceRow:D5}",
                     PrimaryCode = detail.SupplierProductCode,
@@ -156,9 +161,14 @@ public sealed class SupplierCatalogImportsController(
                 };
 
                 ApplyCatalogFields(product, detail);
-                detail.MatchedProductId = product.Id;
                 await dbContext.Products.AddAsync(product, cancellationToken);
                 createdProducts++;
+            }
+
+            if (product is not null)
+            {
+                await UpsertSupplierSnapshotAsync(product, batch, detail, cancellationToken);
+                detail.MatchedProductId = product.Id;
             }
 
             detail.AppliedAt = DateTimeOffset.UtcNow;
@@ -182,23 +192,59 @@ public sealed class SupplierCatalogImportsController(
         return Ok(new SupplierCatalogImportApplyResponse(batch.Id, batch.Status, updatedProducts, createdProducts, skippedRows, reviewRows));
     }
 
+    private async Task UpsertSupplierSnapshotAsync(Product product, SupplierCatalogImportBatch batch, SupplierCatalogImportDetail detail, CancellationToken cancellationToken)
+    {
+        var snapshot = await dbContext.ProductSupplierCatalogSnapshots
+            .SingleOrDefaultAsync(
+                x => x.ProductId == product.Id && x.SupplierProfile == batch.ImportProfile,
+                cancellationToken);
+
+        var isNewSnapshot = snapshot is null;
+        snapshot ??= new ProductSupplierCatalogSnapshot
+        {
+            ProductId = product.Id,
+            SupplierProfile = batch.ImportProfile
+        };
+
+        snapshot.SupplierName = detail.SupplierName;
+        snapshot.SupplierCode = detail.SupplierProductCode;
+        snapshot.SupplierDescription = detail.Description;
+        snapshot.SupplierBrand = detail.Brand;
+        snapshot.SupplierCost = detail.Cost;
+        snapshot.SuggestedSalePrice = detail.SuggestedSalePrice;
+        snapshot.PriceLevelsJson = detail.PriceLevelsJson;
+        snapshot.SupplierAvailability = detail.SupplierAvailability;
+        snapshot.SupplierStockText = detail.SupplierStockText;
+        snapshot.Compatibility = detail.Compatibility;
+        snapshot.Category = detail.Category;
+        snapshot.Line = detail.Line;
+        snapshot.Family = detail.Family;
+        snapshot.SubFamily = detail.SubFamily;
+        snapshot.LastImportBatchId = batch.Id;
+        snapshot.LastImportedAt = DateTimeOffset.UtcNow;
+        snapshot.RequiresReview = detail.RequiresRevision;
+        snapshot.ReviewReason = detail.ReviewReason;
+
+        if (isNewSnapshot)
+        {
+            await dbContext.ProductSupplierCatalogSnapshots.AddAsync(snapshot, cancellationToken);
+        }
+    }
+
     private static void ApplyCatalogFields(Product product, SupplierCatalogImportDetail detail)
     {
-        product.PrimaryCode = detail.SupplierProductCode ?? product.PrimaryCode;
-        product.Description = detail.Description;
-        product.Brand = detail.Brand ?? product.Brand;
-        product.Unit = detail.Unit ?? product.Unit;
-        product.PiecesPerBox = detail.PiecesPerBox ?? product.PiecesPerBox;
-        product.Compatibility = detail.Compatibility ?? product.Compatibility;
-        product.Line = detail.Line ?? product.Line;
-        product.Family = detail.Family ?? product.Family;
-        product.SubFamily = detail.SubFamily ?? product.SubFamily;
-        product.Category = detail.Category ?? product.Category;
+        product.PrimaryCode ??= detail.SupplierProductCode;
+        product.Description = string.IsNullOrWhiteSpace(product.Description) ? detail.Description : product.Description;
+        product.Brand ??= detail.Brand;
+        product.Unit ??= detail.Unit;
+        product.PiecesPerBox ??= detail.PiecesPerBox;
+        product.Compatibility ??= detail.Compatibility;
+        product.Line ??= detail.Line;
+        product.Family ??= detail.Family;
+        product.SubFamily ??= detail.SubFamily;
+        product.Category ??= detail.Category;
         product.CurrentCost = detail.ProposedCost ?? product.CurrentCost;
         product.CurrentSalePrice = detail.ProposedSalePrice ?? product.CurrentSalePrice;
-        product.SupplierName = detail.SupplierName;
-        product.SupplierAvailability = detail.SupplierAvailability;
-        product.SupplierStockText = detail.SupplierStockText;
         product.SupplierCatalogUpdatedAt = DateTimeOffset.UtcNow;
         product.UpdatedAt = DateTimeOffset.UtcNow;
     }

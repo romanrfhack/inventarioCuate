@@ -18,6 +18,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<DemoResetAudit> DemoResetAudits => Set<DemoResetAudit>();
     public DbSet<SupplierCatalogImportBatch> SupplierCatalogImportBatches => Set<SupplierCatalogImportBatch>();
     public DbSet<SupplierCatalogImportDetail> SupplierCatalogImportDetails => Set<SupplierCatalogImportDetail>();
+    public DbSet<ProductSupplierCatalogSnapshot> ProductSupplierCatalogSnapshots => Set<ProductSupplierCatalogSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -47,6 +48,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.HasOne(x => x.InventoryBalance)
                 .WithOne(x => x.Product)
                 .HasForeignKey<InventoryBalance>(x => x.ProductId);
+            entity.HasMany(x => x.SupplierCatalogSnapshots)
+                .WithOne(x => x.Product)
+                .HasForeignKey(x => x.ProductId);
         });
 
         modelBuilder.Entity<InventoryBalance>(entity =>
@@ -187,6 +191,28 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(x => x.ProposedCost).HasColumnType("decimal(18,2)");
             entity.Property(x => x.ProposedSalePrice).HasColumnType("decimal(18,2)");
             entity.HasIndex(x => new { x.SupplierCatalogImportBatchId, x.SourceRow }).IsUnique();
+        });
+
+        modelBuilder.Entity<ProductSupplierCatalogSnapshot>(entity =>
+        {
+            entity.ToTable("ProductSupplierCatalogSnapshots");
+            entity.Property(x => x.SupplierName).HasMaxLength(128);
+            entity.Property(x => x.SupplierProfile).HasMaxLength(64);
+            entity.Property(x => x.SupplierCode).HasMaxLength(64);
+            entity.Property(x => x.SupplierDescription).HasMaxLength(256);
+            entity.Property(x => x.SupplierBrand).HasMaxLength(128);
+            entity.Property(x => x.SupplierCost).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.SuggestedSalePrice).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.PriceLevelsJson).HasColumnType("TEXT");
+            entity.Property(x => x.SupplierAvailability).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.SupplierStockText).HasMaxLength(128);
+            entity.Property(x => x.Compatibility).HasMaxLength(512);
+            entity.Property(x => x.Category).HasMaxLength(128);
+            entity.Property(x => x.Line).HasMaxLength(128);
+            entity.Property(x => x.Family).HasMaxLength(128);
+            entity.Property(x => x.SubFamily).HasMaxLength(128);
+            entity.Property(x => x.ReviewReason).HasMaxLength(512);
+            entity.HasIndex(x => new { x.ProductId, x.SupplierProfile }).IsUnique();
         });
     }
 }

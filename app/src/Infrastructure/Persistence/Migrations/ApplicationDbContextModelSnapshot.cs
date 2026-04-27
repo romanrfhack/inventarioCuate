@@ -286,6 +286,94 @@ namespace RefaccionariaCuate.Infrastructure.Persistence.Migrations
                     b.ToTable("Products", "app");
                 });
 
+            modelBuilder.Entity("RefaccionariaCuate.Domain.Entities.ProductSupplierCatalogSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("Compatibility")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("Family")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<Guid>("LastImportBatchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("LastImportedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Line")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("PriceLevelsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("RequiresReview")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ReviewReason")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<decimal?>("SuggestedSalePrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("SubFamily")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<decimal?>("SupplierAvailability")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("SupplierBrand")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("SupplierCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<decimal?>("SupplierCost")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("SupplierDescription")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("SupplierName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("SupplierProfile")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("SupplierStockText")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId", "SupplierProfile")
+                        .IsUnique();
+
+                    b.ToTable("ProductSupplierCatalogSnapshots", "app");
+                });
+
             modelBuilder.Entity("RefaccionariaCuate.Domain.Entities.Sale", b =>
                 {
                     b.Property<Guid>("Id")
@@ -452,6 +540,17 @@ namespace RefaccionariaCuate.Infrastructure.Persistence.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("RefaccionariaCuate.Domain.Entities.ProductSupplierCatalogSnapshot", b =>
+                {
+                    b.HasOne("RefaccionariaCuate.Domain.Entities.Product", "Product")
+                        .WithMany("SupplierCatalogSnapshots")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+                });
+
             modelBuilder.Entity("RefaccionariaCuate.Domain.Entities.SaleDetail", b =>
                 {
                     b.HasOne("RefaccionariaCuate.Domain.Entities.Product", "Product")
@@ -483,6 +582,8 @@ namespace RefaccionariaCuate.Infrastructure.Persistence.Migrations
                     b.Navigation("Movements");
 
                     b.Navigation("SaleDetails");
+
+                    b.Navigation("SupplierCatalogSnapshots");
                 });
 
             modelBuilder.Entity("RefaccionariaCuate.Domain.Entities.Sale", b =>

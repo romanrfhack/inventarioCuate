@@ -7,7 +7,7 @@ using RefaccionariaCuate.Domain.Entities;
 
 namespace RefaccionariaCuate.Infrastructure.Services;
 
-public sealed class SupplierCatalogCsvParser
+public sealed class SupplierCatalogSpreadsheetParser
 {
     private static readonly IReadOnlyDictionary<string, ProfileDefinition> Profiles = new Dictionary<string, ProfileDefinition>(StringComparer.OrdinalIgnoreCase)
     {
@@ -34,7 +34,7 @@ public sealed class SupplierCatalogCsvParser
             static (context, row) => ParseCCedis(context, row))
     };
 
-    static SupplierCatalogCsvParser()
+    static SupplierCatalogSpreadsheetParser()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
     }

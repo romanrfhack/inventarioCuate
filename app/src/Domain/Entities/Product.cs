@@ -30,4 +30,5 @@ public sealed class Product : Entity
     public InventoryBalance? InventoryBalance { get; set; }
     public List<InventoryMovement> Movements { get; set; } = new();
     public List<SaleDetail> SaleDetails { get; set; } = new();
+    public List<ProductSupplierCatalogSnapshot> SupplierCatalogSnapshots { get; set; } = new();
 }

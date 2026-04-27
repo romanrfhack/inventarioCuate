@@ -21,3 +21,7 @@ appsettings.*.local.json
 # Angular
 .angular/
 coverage/
+
+# Provider catalogs
+/data/provider-catalogs/raw/*
+!/data/provider-catalogs/raw/.gitkeep

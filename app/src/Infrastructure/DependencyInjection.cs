@@ -35,7 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<DemoSeedService>();
         services.AddScoped<InitialInventoryCsvParser>();
-        services.AddScoped<SupplierCatalogCsvParser>();
+        services.AddScoped<SupplierCatalogSpreadsheetParser>();
         services.AddScoped<SupplierCatalogMatcher>();
 
         return services;

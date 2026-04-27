@@ -20,14 +20,15 @@ public sealed class SupplierCatalogImportHttpFlowTests : IClassFixture<TestApiFa
     }
 
     [Theory]
-    [InlineData("alessia", "Alessia", "/root/projects/refaccionaria-cuate/data/provider-catalogs/raw/alessia/07 Abril Lista Alessia 26.xlsm")]
-    [InlineData("masuda", "Masuda", "/root/projects/refaccionaria-cuate/data/provider-catalogs/raw/masuda/LISTA DE PRECIO - MASUDA IMPORTADOR REGIONAL 09-ABRIL.xlsx")]
-    [InlineData("c-cedis", "C-CEDIS", "/root/projects/refaccionaria-cuate/data/provider-catalogs/raw/c-cedis/ListaPreciosC-CEDIS-05042026.xlsx.xls")]
-    public async Task Preview_Should_Parse_Known_Provider_Files(string profile, string supplierName, string filePath)
+    [InlineData("alessia", "Alessia", "alessia/alessia-fixture.xlsx")]
+    [InlineData("masuda", "Masuda", "masuda/masuda-fixture.xlsx")]
+    [InlineData("c-cedis", "C-CEDIS", "c-cedis/c-cedis-fixture.xlsx")]
+    public async Task Preview_Should_Parse_Known_Provider_Files(string profile, string supplierName, string relativeFixturePath)
     {
         await ResetAndSeedAsync();
         var client = await CreateAuthorizedClientAsync();
 
+        var filePath = GetFixturePath(relativeFixturePath);
         using var form = new MultipartFormDataContent();
         form.Add(new StringContent(supplierName), "supplierName");
         form.Add(new StringContent(profile), "importProfile");
@@ -57,7 +58,7 @@ public sealed class SupplierCatalogImportHttpFlowTests : IClassFixture<TestApiFa
             stockBefore = productWithInventory.InventoryBalance!.CurrentStock;
         }
 
-        const string samplePath = "/root/projects/refaccionaria-cuate/data/provider-catalogs/raw/alessia/07 Abril Lista Alessia 26.xlsm";
+        var samplePath = GetFixturePath("alessia/alessia-fixture.xlsx");
         using var form = new MultipartFormDataContent();
         form.Add(new StringContent("Alessia"), "supplierName");
         form.Add(new StringContent("alessia"), "importProfile");
@@ -77,6 +78,39 @@ public sealed class SupplierCatalogImportHttpFlowTests : IClassFixture<TestApiFa
         var persistedProduct = db.Products.Include(x => x.InventoryBalance).Single(x => x.Id == productId);
         persistedProduct.InventoryBalance!.CurrentStock.Should().Be(stockBefore);
         db.SupplierCatalogImportBatches.Single(x => x.Id == batchId).Status.Should().NotBeNullOrWhiteSpace();
+        db.ProductSupplierCatalogSnapshots.Should().Contain(x => x.LastImportBatchId == batchId);
+    }
+
+    [Fact]
+    public async Task Apply_Should_Keep_Independent_Snapshots_Per_Supplier_For_Same_Product()
+    {
+        await ResetAndSeedAsync();
+
+        using (var seedScope = _factory.Services.CreateScope())
+        {
+            var seedDb = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var product = seedDb.Products.First();
+            product.PrimaryCode = "DUP-001";
+            product.Description = "Producto compartido";
+            await seedDb.SaveChangesAsync();
+        }
+
+        var client = await CreateAuthorizedClientAsync();
+
+        var firstBatchId = await PreviewAndApplyAsync(client, "Alessia", "alessia", GetFixturePath("alessia/alessia-fixture.xlsx"));
+        var secondBatchId = await PreviewAndApplyAsync(client, "Masuda", "masuda", GetFixturePath("masuda/masuda-fixture.xlsx"));
+
+        using var assertScope = _factory.Services.CreateScope();
+        var assertDb = assertScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var snapshots = await assertDb.ProductSupplierCatalogSnapshots
+            .AsNoTracking()
+            .Where(x => x.SupplierCode == "DUP-001")
+            .OrderBy(x => x.SupplierProfile)
+            .ToListAsync();
+
+        snapshots.Should().HaveCount(2);
+        snapshots.Select(x => x.SupplierProfile).Should().BeEquivalentTo(["alessia", "masuda"]);
+        snapshots.Select(x => x.LastImportBatchId).Should().Contain([firstBatchId, secondBatchId]);
     }
 
     private async Task<HttpClient> CreateAuthorizedClientAsync()
@@ -87,6 +121,29 @@ public sealed class SupplierCatalogImportHttpFlowTests : IClassFixture<TestApiFa
         var loginJson = JsonDocument.Parse(await loginResponse.Content.ReadAsStringAsync());
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginJson.RootElement.GetProperty("accessToken").GetString());
         return client;
+    }
+
+    private async Task<Guid> PreviewAndApplyAsync(HttpClient client, string supplierName, string importProfile, string filePath)
+    {
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent(supplierName), "supplierName");
+        form.Add(new StringContent(importProfile), "importProfile");
+        form.Add(new StreamContent(File.OpenRead(filePath)), "file", Path.GetFileName(filePath));
+
+        var previewResponse = await client.PostAsync("/api/provider-catalogs/preview", form);
+        previewResponse.EnsureSuccessStatusCode();
+        var previewJson = JsonDocument.Parse(await previewResponse.Content.ReadAsStringAsync());
+        var batchId = previewJson.RootElement.GetProperty("batchId").GetGuid();
+        var confirmationToken = previewJson.RootElement.GetProperty("confirmationToken").GetString();
+
+        var applyResponse = await client.PostAsJsonAsync($"/api/provider-catalogs/apply/{batchId}", new { confirmationToken });
+        applyResponse.EnsureSuccessStatusCode();
+        return batchId;
+    }
+
+    private static string GetFixturePath(string relativeFixturePath)
+    {
+        return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../data/provider-catalogs/fixtures", relativeFixturePath));
     }
 
     private async Task ResetAndSeedAsync()

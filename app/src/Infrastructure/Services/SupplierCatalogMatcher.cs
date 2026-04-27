@@ -93,17 +93,14 @@ public sealed class SupplierCatalogMatcher(ApplicationDbContext dbContext)
     {
         return detail.Cost != product.CurrentCost
             || detail.SuggestedSalePrice != product.CurrentSalePrice
-            || Normalize(detail.Brand) != Normalize(product.Brand)
-            || Normalize(detail.Unit) != Normalize(product.Unit)
-            || detail.PiecesPerBox != product.PiecesPerBox
-            || Normalize(detail.Compatibility) != Normalize(product.Compatibility)
-            || Normalize(detail.Line) != Normalize(product.Line)
-            || Normalize(detail.Family) != Normalize(product.Family)
-            || Normalize(detail.SubFamily) != Normalize(product.SubFamily)
-            || Normalize(detail.Category) != Normalize(product.Category)
-            || Normalize(detail.SupplierName) != Normalize(product.SupplierName)
-            || detail.SupplierAvailability != product.SupplierAvailability
-            || Normalize(detail.SupplierStockText) != Normalize(product.SupplierStockText);
+            || (string.IsNullOrWhiteSpace(product.Brand) && !string.IsNullOrWhiteSpace(detail.Brand))
+            || (string.IsNullOrWhiteSpace(product.Unit) && !string.IsNullOrWhiteSpace(detail.Unit))
+            || (!product.PiecesPerBox.HasValue && detail.PiecesPerBox.HasValue)
+            || (string.IsNullOrWhiteSpace(product.Compatibility) && !string.IsNullOrWhiteSpace(detail.Compatibility))
+            || (string.IsNullOrWhiteSpace(product.Line) && !string.IsNullOrWhiteSpace(detail.Line))
+            || (string.IsNullOrWhiteSpace(product.Family) && !string.IsNullOrWhiteSpace(detail.Family))
+            || (string.IsNullOrWhiteSpace(product.SubFamily) && !string.IsNullOrWhiteSpace(detail.SubFamily))
+            || (string.IsNullOrWhiteSpace(product.Category) && !string.IsNullOrWhiteSpace(detail.Category));
     }
 
     private static void Mark(SupplierCatalogImportDetail detail, string matchType, string actionType, string rowStatus, List<string> reasons)

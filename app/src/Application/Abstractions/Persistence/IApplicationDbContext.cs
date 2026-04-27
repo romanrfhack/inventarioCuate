@@ -17,5 +17,6 @@ public interface IApplicationDbContext
     DbSet<DemoResetAudit> DemoResetAudits { get; }
     DbSet<SupplierCatalogImportBatch> SupplierCatalogImportBatches { get; }
     DbSet<SupplierCatalogImportDetail> SupplierCatalogImportDetails { get; }
+    DbSet<ProductSupplierCatalogSnapshot> ProductSupplierCatalogSnapshots { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

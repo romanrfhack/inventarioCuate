@@ -6,14 +6,15 @@ namespace RefaccionariaCuate.IntegrationTests;
 
 public sealed class SupplierCatalogParserTests
 {
-    private readonly SupplierCatalogCsvParser _parser = new();
+    private readonly SupplierCatalogSpreadsheetParser _parser = new();
 
     [Theory]
-    [InlineData("Alessia", "alessia", "/root/projects/refaccionaria-cuate/data/provider-catalogs/raw/alessia/07 Abril Lista Alessia 26.xlsm")]
-    [InlineData("Masuda", "masuda", "/root/projects/refaccionaria-cuate/data/provider-catalogs/raw/masuda/LISTA DE PRECIO - MASUDA IMPORTADOR REGIONAL 09-ABRIL.xlsx")]
-    [InlineData("C-CEDIS", "c-cedis", "/root/projects/refaccionaria-cuate/data/provider-catalogs/raw/c-cedis/ListaPreciosC-CEDIS-05042026.xlsx.xls")]
-    public void Parse_Should_Normalize_Known_Provider_File(string supplierName, string profile, string filePath)
+    [InlineData("Alessia", "alessia", "alessia/alessia-fixture.xlsx")]
+    [InlineData("Masuda", "masuda", "masuda/masuda-fixture.xlsx")]
+    [InlineData("C-CEDIS", "c-cedis", "c-cedis/c-cedis-fixture.xlsx")]
+    public void Parse_Should_Normalize_Known_Provider_File(string supplierName, string profile, string relativeFixturePath)
     {
+        var filePath = GetFixturePath(relativeFixturePath);
         using var stream = File.OpenRead(filePath);
         var result = _parser.Parse(supplierName, profile, Path.GetFileName(filePath), stream);
 
@@ -21,5 +22,10 @@ public sealed class SupplierCatalogParserTests
         result.Rows.Should().NotBeEmpty();
         result.Rows.Should().OnlyContain(x => x.ImportProfile == profile && x.SupplierName == supplierName);
         result.Rows.Should().Contain(x => !string.IsNullOrWhiteSpace(x.Description));
+    }
+
+    private static string GetFixturePath(string relativeFixturePath)
+    {
+        return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../data/provider-catalogs/fixtures", relativeFixturePath));
     }
 }
