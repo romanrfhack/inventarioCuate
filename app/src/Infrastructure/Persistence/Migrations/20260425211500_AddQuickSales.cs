@@ -1,10 +1,14 @@
 using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using RefaccionariaCuate.Infrastructure.Persistence;
 
 #nullable disable
 
 namespace RefaccionariaCuate.Infrastructure.Persistence.Migrations
 {
+    [DbContext(typeof(ApplicationDbContext))]
+    [Migration("20260425211500_AddQuickSales")]
     public partial class AddQuickSales : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

@@ -1,10 +1,14 @@
 using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using RefaccionariaCuate.Infrastructure.Persistence;
 
 #nullable disable
 
 namespace RefaccionariaCuate.Infrastructure.Persistence.Migrations
 {
+    [DbContext(typeof(ApplicationDbContext))]
+    [Migration("20260427162000_AddProductSupplierCatalogSnapshots")]
     public partial class AddProductSupplierCatalogSnapshots : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
