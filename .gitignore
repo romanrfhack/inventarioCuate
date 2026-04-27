@@ -26,3 +26,6 @@ coverage/
 /data/provider-catalogs/raw/*
 !/data/provider-catalogs/raw/.gitkeep
 data/raw/
+
+app/src/Api/appsettings.Development.json
+app/.vs/
